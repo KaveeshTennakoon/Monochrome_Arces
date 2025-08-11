@@ -1,0 +1,45 @@
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# dependencies
+admin-panel/node_modules/
+admin-panel/.pnp
+admin-panel/.pnp.*
+admin-panel/.yarn/*
+!admin-panel/.yarn/patches
+!admin-panel/.yarn/plugins
+!admin-panel/.yarn/releases
+!admin-panel/.yarn/versions
+
+# testing
+admin-panel/coverage
+
+# next.js
+admin-panel/.next/
+admin-panel/out/
+
+# production
+admin-panel/build
+
+# misc
+.DS_Store
+*.pem
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# env files (can opt-in for committing if needed)
+admin-panel/.env*
+.env*  # keep root env ignores too
+
+# vercel
+admin-panel/.vercel
+
+# typescript
+admin-panel/*.tsbuildinfo
+admin-panel/next-env.d.ts
+
+# existing global ignores
+*.log
