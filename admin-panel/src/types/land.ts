@@ -1,30 +1,41 @@
-export interface User {
+export interface LandParcel {
   id: string;
-  username: string;
-  email: string;
-  role: 'super_admin' | 'admin' | 'data_entry' | 'view_only';
-  firstName: string;
-  lastName: string;
-  isActive: boolean;
+  deedNumber: string;
+  surveyPlanNumber: string;
+  ownerName: string;
+  ownerAddress: string;
+  landType: 'residential' | 'commercial' | 'agricultural' | 'industrial';
+  area: number; // in square meters
+  coordinates: [number, number][]; // lat, lng pairs for polygon
+  address: string;
+  district: string;
+  province: string;
+  isVerified: boolean;
+  verificationDate?: string;
+  createdBy: string;
+  updatedBy: string;
   createdAt: string;
   updatedAt: string;
 }
 
-export interface LoginCredentials {
-  username: string;
-  password: string;
+export interface LandSearchFilters {
+  deedNumber?: string;
+  surveyPlanNumber?: string;
+  ownerName?: string;
+  landType?: string;
+  district?: string;
+  isVerified?: boolean;
 }
 
-export interface AuthResponse {
-  user: User;
-  accessToken: string;
-  refreshToken: string;
-}
-
-export interface AuthContextType {
-  user: User | null;
-  isLoading: boolean;
-  login: (credentials: LoginCredentials) => Promise<void>;
-  logout: () => void;
-  hasPermission: (permission: string) => boolean;
+export interface AddLandRequest {
+  deedNumber: string;
+  surveyPlanNumber: string;
+  ownerName: string;
+  ownerAddress: string;
+  landType: string;
+  area: number;
+  coordinates: [number, number][];
+  address: string;
+  district: string;
+  province: string;
 }
