@@ -21,7 +21,7 @@ const SuperAdminLogin = () => {
     if (typeof window !== 'undefined') {
       const token = localStorage.getItem('superAdminToken');
       if (token) {
-        router.push('/superadmin/dashboard');
+        router.push('/superadmin/users');
       }
     }
   }, [router]);
@@ -42,7 +42,7 @@ const SuperAdminLogin = () => {
       }));
 
       alert('Login successful!');
-      router.push('/superadmin/dashboard');
+      router.push('/superadmin/users');
     } else {
       setError('Invalid credentials');
     }
