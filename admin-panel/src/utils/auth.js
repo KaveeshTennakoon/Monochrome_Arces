@@ -1,4 +1,3 @@
-// src/utils/auth.js
 export const AUTH_STORAGE_KEY = 'adminUser';
 export const TOKEN_STORAGE_KEY = 'adminToken';
 

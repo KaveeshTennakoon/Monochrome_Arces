@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+// src/pages/admin/login.jsx
+import React, { useState, useEffect } from 'react';
 import { 
   Form, 
   Input, 
@@ -7,22 +8,23 @@ import {
   Typography, 
   Row, 
   Col, 
-  Space,
   Alert,
-  Checkbox,
-  Divider
+  Space,
+  Divider,
+  message
 } from 'antd';
 import { 
   UserOutlined, 
   LockOutlined, 
   LoginOutlined,
-  SafetyOutlined,
-  BankOutlined
+  BankOutlined,
+  CrownOutlined
 } from '@ant-design/icons';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
+import { isAuthenticated, AUTH_STORAGE_KEY, TOKEN_STORAGE_KEY } from '../../utils/auth';
 
-const { Title, Text, Paragraph } = Typography;
+const { Title, Text } = Typography;
 
 const AdminLogin = () => {
   const [loading, setLoading] = useState(false);
@@ -30,60 +32,54 @@ const AdminLogin = () => {
   const [form] = Form.useForm();
   const router = useRouter();
 
+  // Demo admin credentials
+  const ADMIN_CREDENTIALS = {
+    username: 'admin',
+    password: 'admin123'
+  };
+
+  // Check if already authenticated
+  useEffect(() => {
+    if (isAuthenticated()) {
+      router.push('/admin/dashboard');
+    }
+  }, [router]);
+
   const handleLogin = async (values) => {
     setLoading(true);
     setError('');
 
     try {
-      // Simulate API call - Replace with actual authentication logic
-      console.log('Login attempt:', values);
-      
-      // Mock authentication logic - Replace with real API call
       const { username, password } = values;
       
-      // Simulate different user roles and credentials
-      const mockUsers = [
-        {
-          username: 'admin',
-          password: 'admin123',
+      // Validate credentials (in production, this would be an API call)
+      if (username === ADMIN_CREDENTIALS.username && 
+          password === ADMIN_CREDENTIALS.password) {
+        
+        // Create user session
+        const userData = {
+          id: 'admin001',
+          name: 'System Administrator',
+          username: username,
+          email: 'admin@gov.lk',
           role: 'admin',
-          name: 'Admin User',
-          permissions: ['appointments', 'services', 'users', 'analytics']
-        },
-        {
-          username: 'officer1',
-          password: 'officer123',
-          role: 'officer',
-          name: 'Government Officer',
-          permissions: ['appointments', 'services']
-        },
-        {
-          username: 'manager',
-          password: 'manager123',
-          role: 'manager',
-          name: 'Department Manager',
-          permissions: ['appointments', 'services', 'analytics']
-        }
-      ];
-
-      // Find matching user
-      const user = mockUsers.find(u => u.username === username && u.password === password);
-
-      if (user) {
-        // Store user data in localStorage (in production, use secure token management)
-        localStorage.setItem('adminUser', JSON.stringify({
-          id: user.username,
-          name: user.name,
-          role: user.role,
-          permissions: user.permissions,
+          department: 'Land Registry Department',
+          permissions: ['appointments', 'services', 'users', 'analytics', 'settings'],
           loginTime: new Date().toISOString()
-        }));
+        };
 
-        // Store authentication token (mock)
-        localStorage.setItem('adminToken', 'mock-jwt-token-' + Date.now());
+        const token = 'admin-token-' + Date.now();
 
-        // Redirect to dashboard
-        router.push('/admin/dashboard');
+        // Store in localStorage
+        localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(userData));
+        localStorage.setItem(TOKEN_STORAGE_KEY, token);
+
+        message.success('Login successful!');
+        
+        // Small delay to show success message
+        setTimeout(() => {
+          router.push('/admin/dashboard');
+        }, 500);
       } else {
         setError('Invalid username or password. Please try again.');
       }
@@ -95,7 +91,7 @@ const AdminLogin = () => {
     }
   };
 
-  const handleSuperAdminRedirect = () => {
+  const handleSuperAdminAccess = () => {
     router.push('/superadmin/login');
   };
 
@@ -103,7 +99,7 @@ const AdminLogin = () => {
     <>
       <Head>
         <title>Admin Login - Government Services Portal</title>
-        <meta name="description" content="Admin login for Government Services Portal" />
+        <meta name="description" content="Admin access for Government Services Portal" />
       </Head>
 
       <div style={{
@@ -119,30 +115,31 @@ const AdminLogin = () => {
             <Card
               style={{
                 boxShadow: '0 20px 40px rgba(0,0,0,0.1)',
-                borderRadius: '12px',
+                borderRadius: '16px',
                 border: 'none'
               }}
-              bodyStyle={{ padding: '40px' }}
+              styles={{ body: { padding: '48px' } }}
             >
               {/* Header */}
-              <div style={{ textAlign: 'center', marginBottom: '32px' }}>
+              <div style={{ textAlign: 'center', marginBottom: '40px' }}>
                 <div style={{
-                  width: 64,
-                  height: 64,
-                  background: '#1890ff',
-                  borderRadius: '12px',
-                  margin: '0 auto 16px',
+                  width: 80,
+                  height: 80,
+                  background: 'linear-gradient(135deg, #667eea, #764ba2)',
+                  borderRadius: '20px',
+                  margin: '0 auto 20px',
                   display: 'flex',
                   alignItems: 'center',
-                  justifyContent: 'center'
+                  justifyContent: 'center',
+                  boxShadow: '0 10px 30px rgba(102, 126, 234, 0.3)'
                 }}>
-                  <BankOutlined style={{ fontSize: '32px', color: 'white' }} />
+                  <BankOutlined style={{ fontSize: '40px', color: 'white' }} />
                 </div>
-                <Title level={2} style={{ margin: 0, color: '#1890ff' }}>
+                <Title level={2} style={{ margin: 0, color: '#333' }}>
                   Government Portal
                 </Title>
-                <Text type="secondary" style={{ fontSize: '16px' }}>
-                  Admin Dashboard Login
+                <Text style={{ fontSize: '16px', color: '#666' }}>
+                  Administrative Access
                 </Text>
               </div>
 
@@ -154,13 +151,17 @@ const AdminLogin = () => {
                 layout="vertical"
                 size="large"
                 autoComplete="off"
+                initialValues={{ username: '', password: '' }}
               >
                 {error && (
                   <Alert
-                    message={error}
+                    message="Login Failed"
+                    description={error}
                     type="error"
                     showIcon
+                    closable
                     style={{ marginBottom: '24px' }}
+                    onClose={() => setError('')}
                   />
                 )}
 
@@ -168,14 +169,14 @@ const AdminLogin = () => {
                   name="username"
                   label="Username"
                   rules={[
-                    { required: true, message: 'Please enter your username' },
-                    { min: 3, message: 'Username must be at least 3 characters' }
+                    { required: true, message: 'Please enter your username' }
                   ]}
                 >
                   <Input
                     prefix={<UserOutlined />}
                     placeholder="Enter your username"
                     autoComplete="username"
+                    disabled={loading}
                   />
                 </Form.Item>
 
@@ -183,82 +184,80 @@ const AdminLogin = () => {
                   name="password"
                   label="Password"
                   rules={[
-                    { required: true, message: 'Please enter your password' },
-                    { min: 6, message: 'Password must be at least 6 characters' }
+                    { required: true, message: 'Please enter your password' }
                   ]}
                 >
                   <Input.Password
                     prefix={<LockOutlined />}
                     placeholder="Enter your password"
                     autoComplete="current-password"
+                    disabled={loading}
                   />
                 </Form.Item>
 
-                <Form.Item>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <Form.Item name="remember" valuePropName="checked" noStyle>
-                      <Checkbox>Remember me</Checkbox>
-                    </Form.Item>
-                    <Button type="link" style={{ padding: 0 }}>
-                      Forgot password?
-                    </Button>
-                  </div>
-                </Form.Item>
-
-                <Form.Item style={{ marginBottom: '16px' }}>
+                <Form.Item style={{ marginBottom: '24px' }}>
                   <Button
                     type="primary"
                     htmlType="submit"
                     loading={loading}
                     block
                     icon={<LoginOutlined />}
-                    style={{ height: '48px', fontSize: '16px' }}
+                    style={{ 
+                      height: '48px', 
+                      fontSize: '16px',
+                      background: 'linear-gradient(135deg, #667eea, #764ba2)',
+                      border: 'none'
+                    }}
                   >
-                    {loading ? 'Signing In...' : 'Sign In'}
+                    {loading ? 'Signing in...' : 'Sign In'}
                   </Button>
                 </Form.Item>
               </Form>
 
-              <Divider>
-                <Text type="secondary" style={{ fontSize: '12px' }}>
-                  Administrative Access
-                </Text>
+              {/* Super Admin Access */}
+              <Divider style={{ margin: '32px 0' }}>
+                <Text style={{ color: '#999', fontSize: '12px' }}>Administrative Access</Text>
               </Divider>
 
-              {/* Super Admin Access */}
-              <div style={{ textAlign: 'center' }}>
-                <Button
-                  type="link"
-                  icon={<SafetyOutlined />}
-                  onClick={handleSuperAdminRedirect}
-                  style={{ padding: 0 }}
-                >
-                  Super Admin Access
-                </Button>
-              </div>
+              <Button
+                type="default"
+                block
+                icon={<CrownOutlined />}
+                onClick={handleSuperAdminAccess}
+                style={{ 
+                  height: '40px',
+                  borderColor: '#ff6b6b',
+                  color: '#ff6b6b'
+                }}
+                disabled={loading}
+              >
+                Super Admin Portal
+              </Button>
 
               {/* Demo Credentials */}
               <div style={{ 
-                marginTop: '24px', 
-                padding: '16px', 
-                background: '#f5f5f5', 
-                borderRadius: '8px',
-                border: '1px solid #e8e8e8'
+                marginTop: '32px', 
+                padding: '20px', 
+                background: '#f8f9fa', 
+                borderRadius: '12px',
+                border: '1px solid #e9ecef'
               }}>
                 <Text strong style={{ fontSize: '12px', color: '#666' }}>
-                  Demo Credentials:
+                  Demo Admin Credentials:
                 </Text>
-                <div style={{ fontSize: '11px', color: '#888', marginTop: '4px' }}>
-                  <div>Admin: <code>admin / admin123</code></div>
-                  <div>Officer: <code>officer1 / officer123</code></div>
-                  <div>Manager: <code>manager / manager123</code></div>
+                <div style={{ fontSize: '11px', color: '#888', marginTop: '8px' }}>
+                  <div>Username: <code>{ADMIN_CREDENTIALS.username}</code></div>
+                  <div>Password: <code>{ADMIN_CREDENTIALS.password}</code></div>
                 </div>
+                <Text style={{ fontSize: '10px', color: '#999', marginTop: '8px', display: 'block' }}>
+                  *For demo purposes only. In production, use secure authentication.
+                </Text>
               </div>
             </Card>
 
             {/* Footer */}
             <div style={{ textAlign: 'center', marginTop: '24px' }}>
-              <Text style={{ color: 'rgba(255,255,255,0.8)', fontSize: '12px' }}>
+              <Text style={{ color: 'rgba(255,255,255,0.9)', fontSize: '12px' }}>
                 Government Services Portal © 2025
               </Text>
             </div>
