@@ -1,12 +1,51 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
+import { 
+  Typography, 
+  Table, 
+  Button, 
+  Modal, 
+  Form, 
+  Input, 
+  Select, 
+  Checkbox, 
+  Card, 
+  Row, 
+  Col,
+  message,
+  Popconfirm,
+  Tag,
+  Space,
+  Spin,
+  Alert
+} from 'antd';
+import {
+  PlusOutlined,
+  EditOutlined,
+  DeleteOutlined,
+  UserOutlined,
+  ReloadOutlined,
+  LogoutOutlined
+} from '@ant-design/icons';
+import { usersAPI, departmentsAPI, handleAPIError } from '../../utils/api';
+
+const { Title, Text } = Typography;
+const { Option } = Select;
 
 const SuperAdminUsers = () => {
   const [loading, setLoading] = useState(true);
+  const [tableLoading, setTableLoading] = useState(false);
   const [users, setUsers] = useState([]);
+  const [departments, setDepartments] = useState([]);
+  const [stats, setStats] = useState({
+    totalUsers: 0,
+    activeUsers: 0,
+    departmentCount: 0
+  });
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
+  const [modalLoading, setModalLoading] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     username: '',
@@ -18,6 +57,7 @@ const SuperAdminUsers = () => {
     permissions: []
   });
   const router = useRouter();
+  const [form] = Form.useForm();
 
   // Check authentication
   useEffect(() => {
@@ -27,51 +67,61 @@ const SuperAdminUsers = () => {
       return;
     }
     
-    // Load initial data
-    loadUsers();
-    setLoading(false);
+    loadInitialData();
   }, [router]);
 
-  // Mock data - replace with API calls
-  const loadUsers = () => {
-    const mockUsers = [
-      {
-        id: 1,
-        name: 'John Administrator',
-        username: 'admin1',
-        email: 'john.admin@gov.lk',
-        phone: '+94 71 123 4567',
-        role: 'admin',
-        department: 'Land Registry Department',
-        permissions: ['appointments', 'services', 'users', 'analytics'],
-        status: 'active',
-        createdDate: '2025-01-15',
-        lastLogin: '2025-08-14 09:30 AM'
-      },
-      {
-        id: 2,
-        name: 'Sarah Manager',
-        username: 'manager1',
-        email: 'sarah.manager@gov.lk',
-        phone: '+94 77 987 6543',
-        role: 'manager',
-        department: 'Motor Traffic Department',
-        permissions: ['appointments', 'services'],
-        status: 'active',
-        createdDate: '2025-02-01',
-        lastLogin: '2025-08-14 08:45 AM'
-      }
-    ];
-    setUsers(mockUsers);
+  const loadInitialData = async () => {
+    try {
+      setLoading(true);
+      
+      // Load departments and users in parallel
+      await Promise.all([
+        loadDepartments(),
+        loadUsers(),
+        loadUserStats()
+      ]);
+    } catch (error) {
+      handleAPIError(error);
+      message.error('Failed to load initial data');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const departments = [
-    'Land Registry Department',
-    'Motor Traffic Department', 
-    'Immigration & Emigration Department',
-    'Department of Inland Revenue',
-    'Urban Development Authority'
-  ];
+  const loadDepartments = async () => {
+    try {
+      const response = await departmentsAPI.getDepartments();
+      setDepartments(response.data || []);
+    } catch (error) {
+      handleAPIError(error);
+    }
+  };
+
+  const loadUsers = async () => {
+    try {
+      setTableLoading(true);
+      const response = await usersAPI.getUsers();
+      setUsers(response.data || []);
+    } catch (error) {
+      handleAPIError(error);
+      message.error('Failed to load users');
+    } finally {
+      setTableLoading(false);
+    }
+  };
+
+  const loadUserStats = async () => {
+    try {
+      const response = await usersAPI.getUserStats();
+      setStats(response.data || {
+        totalUsers: 0,
+        activeUsers: 0,
+        departmentCount: 0
+      });
+    } catch (error) {
+      handleAPIError(error);
+    }
+  };
 
   const roles = [
     { value: 'admin', label: 'System Administrator' },
@@ -99,12 +149,13 @@ const SuperAdminUsers = () => {
       role: '',
       permissions: []
     });
+    form.resetFields();
     setShowCreateModal(true);
   };
 
   const handleEditUser = (user) => {
     setEditingUser(user);
-    setFormData({
+    const userData = {
       name: user.name,
       username: user.username,
       email: user.email,
@@ -112,42 +163,70 @@ const SuperAdminUsers = () => {
       password: '',
       department: user.department,
       role: user.role,
-      permissions: user.permissions
-    });
+      permissions: user.permissions || []
+    };
+    setFormData(userData);
+    form.setFieldsValue(userData);
     setShowCreateModal(true);
   };
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    
-    if (editingUser) {
-      // Update existing user
-      setUsers(users.map(user => 
-        user.id === editingUser.id 
-          ? { ...user, ...formData, id: user.id }
-          : user
-      ));
-      alert('User updated successfully!');
-    } else {
-      // Create new user
-      const newUser = {
-        ...formData,
-        id: Date.now(),
-        status: 'active',
-        createdDate: new Date().toISOString().split('T')[0],
-        lastLogin: 'Never'
+  const handleSubmit = async (values) => {
+    try {
+      setModalLoading(true);
+      
+      const userData = {
+        ...values,
+        permissions: formData.permissions
       };
-      setUsers([...users, newUser]);
-      alert('User created successfully!');
+
+      if (editingUser) {
+        // Update existing user
+        await usersAPI.updateUser(editingUser.id, userData);
+        message.success('User updated successfully!');
+      } else {
+        // Create new user
+        await usersAPI.createUser(userData);
+        message.success('User created successfully!');
+      }
+      
+      setShowCreateModal(false);
+      form.resetFields();
+      
+      // Reload data
+      await Promise.all([loadUsers(), loadUserStats()]);
+      
+    } catch (error) {
+      handleAPIError(error);
+      message.error(`Failed to ${editingUser ? 'update' : 'create'} user`);
+    } finally {
+      setModalLoading(false);
     }
-    
-    setShowCreateModal(false);
   };
 
-  const handleDeleteUser = (userId) => {
-    if (confirm('Are you sure you want to delete this user?')) {
-      setUsers(users.filter(user => user.id !== userId));
-      alert('User deleted successfully!');
+  const handleDeleteUser = async (userId) => {
+    try {
+      await usersAPI.deleteUser(userId);
+      message.success('User deleted successfully!');
+      
+      // Reload data
+      await Promise.all([loadUsers(), loadUserStats()]);
+    } catch (error) {
+      handleAPIError(error);
+      message.error('Failed to delete user');
+    }
+  };
+
+  const handleStatusToggle = async (userId, currentStatus) => {
+    try {
+      const newStatus = currentStatus === 'active' ? 'inactive' : 'active';
+      await usersAPI.updateUserStatus(userId, newStatus);
+      message.success(`User ${newStatus === 'active' ? 'activated' : 'deactivated'} successfully!`);
+      
+      // Reload data
+      await loadUsers();
+    } catch (error) {
+      handleAPIError(error);
+      message.error('Failed to update user status');
     }
   };
 
@@ -159,16 +238,143 @@ const SuperAdminUsers = () => {
     setFormData({ ...formData, permissions: newPermissions });
   };
 
+  const handleRefresh = async () => {
+    await loadInitialData();
+    message.success('Data refreshed successfully');
+  };
+
   const logout = () => {
     localStorage.removeItem('superAdminToken');
     localStorage.removeItem('superAdminUser');
     router.push('/superadmin/login');
   };
 
+  const columns = [
+    {
+      title: 'User Info',
+      key: 'userInfo',
+      render: (_, record) => (
+        <div>
+          <div style={{ fontWeight: '600', color: '#1890ff' }}>{record.name}</div>
+          <div style={{ fontSize: '12px', color: '#666' }}>
+            <UserOutlined style={{ marginRight: 4 }} />
+            {record.username}
+          </div>
+          <div style={{ fontSize: '12px', color: '#666' }}>
+            ✉️ {record.email}
+          </div>
+          <div style={{ fontSize: '12px', color: '#666' }}>
+            📞 {record.phone}
+          </div>
+        </div>
+      ),
+    },
+    {
+      title: 'Department',
+      dataIndex: 'department',
+      key: 'department',
+      render: (department) => (
+        <div style={{ fontSize: '12px' }}>{department}</div>
+      ),
+    },
+    {
+      title: 'Role',
+      dataIndex: 'role',
+      key: 'role',
+      render: (role) => (
+        <Tag color={
+          role === 'admin' ? 'red' : 
+          role === 'manager' ? 'blue' : 'green'
+        }>
+          {role?.toUpperCase()}
+        </Tag>
+      ),
+    },
+    {
+      title: 'Status',
+      dataIndex: 'status',
+      key: 'status',
+      render: (status, record) => (
+        <div>
+          <Tag color={status === 'active' ? 'green' : 'red'}>
+            {status?.toUpperCase()}
+          </Tag>
+          <br />
+          <Button 
+            size="small"
+            type="link"
+            onClick={() => handleStatusToggle(record.id, status)}
+            style={{ padding: 0, fontSize: '11px' }}
+          >
+            {status === 'active' ? 'Deactivate' : 'Activate'}
+          </Button>
+        </div>
+      ),
+    },
+    {
+      title: 'Permissions',
+      dataIndex: 'permissions',
+      key: 'permissions',
+      render: (permissions) => (
+        <div>
+          {permissions?.slice(0, 2).map(permission => (
+            <Tag key={permission} size="small" style={{ fontSize: '10px' }}>
+              {permission}
+            </Tag>
+          ))}
+          {permissions?.length > 2 && (
+            <Tag size="small" style={{ fontSize: '10px' }}>
+              +{permissions.length - 2} more
+            </Tag>
+          )}
+        </div>
+      ),
+    },
+    {
+      title: 'Last Login',
+      dataIndex: 'lastLogin',
+      key: 'lastLogin',
+      render: (lastLogin) => (
+        <Text style={{ fontSize: '12px' }}>
+          {lastLogin ? new Date(lastLogin).toLocaleDateString() : 'Never'}
+        </Text>
+      ),
+    },
+    {
+      title: 'Actions',
+      key: 'actions',
+      render: (_, record) => (
+        <Space size="small">
+          <Button
+            size="small"
+            icon={<EditOutlined />}
+            onClick={() => handleEditUser(record)}
+          >
+            Edit
+          </Button>
+          <Popconfirm
+            title="Are you sure you want to delete this user?"
+            onConfirm={() => handleDeleteUser(record.id)}
+            okText="Yes"
+            cancelText="No"
+          >
+            <Button
+              size="small"
+              danger
+              icon={<DeleteOutlined />}
+            >
+              Delete
+            </Button>
+          </Popconfirm>
+        </Space>
+      ),
+    },
+  ];
+
   if (loading) {
     return (
       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
-        <div>Loading...</div>
+        <Spin size="large" />
       </div>
     );
   }
@@ -190,19 +396,25 @@ const SuperAdminUsers = () => {
           alignItems: 'center'
         }}>
           <div>
-            <h1 style={{ margin: 0, color: '#1e3c72' }}>Super Admin - Book Appointment</h1>
+            <Title level={3} style={{ margin: 0, color: '#1e3c72' }}>
+              Super Admin - User Management
+            </Title>
           </div>
           <div style={{ display: 'flex', gap: '12px' }}>
-            <button onClick={logout} style={{
-              padding: '8px 16px',
-              border: '1px solid #ff4d4f',
-              borderRadius: '6px',
-              background: '#ff4d4f',
-              color: 'white',
-              cursor: 'pointer'
-            }}>
+            <Button 
+              icon={<ReloadOutlined />} 
+              onClick={handleRefresh}
+              loading={tableLoading}
+            >
+              Refresh
+            </Button>
+            <Button 
+              icon={<LogoutOutlined />} 
+              onClick={logout} 
+              danger
+            >
               Logout
-            </button>
+            </Button>
           </div>
         </div>
 
@@ -222,396 +434,228 @@ const SuperAdminUsers = () => {
               marginBottom: '24px'
             }}>
               <div>
-                <h2 style={{ margin: 0 }}>Admin User Management</h2>
-                <p style={{ color: '#666', margin: '4px 0 0' }}>
+                <Title level={4} style={{ margin: 0 }}>Admin User Management</Title>
+                <Text type="secondary" style={{ fontSize: '14px' }}>
                   Create and manage admin users for government departments
-                </p>
+                </Text>
               </div>
-              <button
+              <Button
+                type="primary"
+                icon={<PlusOutlined />}
                 onClick={handleCreateUser}
                 style={{
-                  padding: '12px 24px',
                   background: 'linear-gradient(135deg, #1e3c72, #2a5298)',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '6px',
-                  fontSize: '14px',
-                  fontWeight: '500',
-                  cursor: 'pointer'
+                  border: 'none'
                 }}
               >
-                + Create New User
-              </button>
+                Create New User
+              </Button>
             </div>
 
             {/* Statistics */}
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-              gap: '16px',
-              marginBottom: '24px'
-            }}>
-              <div style={{
-                background: '#f8f9fa',
-                padding: '16px',
-                borderRadius: '6px',
-                textAlign: 'center'
-              }}>
-                <div style={{ fontSize: '24px', fontWeight: '600', color: '#1890ff' }}>
-                  {users.length}
-                </div>
-                <div style={{ fontSize: '12px', color: '#666' }}>Total Users</div>
-              </div>
-              <div style={{
-                background: '#f8f9fa',
-                padding: '16px',
-                borderRadius: '6px',
-                textAlign: 'center'
-              }}>
-                <div style={{ fontSize: '24px', fontWeight: '600', color: '#52c41a' }}>
-                  {users.filter(u => u.status === 'active').length}
-                </div>
-                <div style={{ fontSize: '12px', color: '#666' }}>Active Users</div>
-              </div>
-              <div style={{
-                background: '#f8f9fa',
-                padding: '16px',
-                borderRadius: '6px',
-                textAlign: 'center'
-              }}>
-                <div style={{ fontSize: '24px', fontWeight: '600', color: '#722ed1' }}>
-                  {new Set(users.map(u => u.department)).size}
-                </div>
-                <div style={{ fontSize: '12px', color: '#666' }}>Departments</div>
-              </div>
-            </div>
+            <Row gutter={[16, 16]} style={{ marginBottom: '24px' }}>
+              <Col xs={24} sm={8}>
+                <Card size="small" style={{ textAlign: 'center' }}>
+                  <div style={{ fontSize: '24px', fontWeight: '600', color: '#1890ff' }}>
+                    {stats.totalUsers}
+                  </div>
+                  <div style={{ fontSize: '12px', color: '#666' }}>Total Users</div>
+                </Card>
+              </Col>
+              <Col xs={24} sm={8}>
+                <Card size="small" style={{ textAlign: 'center' }}>
+                  <div style={{ fontSize: '24px', fontWeight: '600', color: '#52c41a' }}>
+                    {stats.activeUsers}
+                  </div>
+                  <div style={{ fontSize: '12px', color: '#666' }}>Active Users</div>
+                </Card>
+              </Col>
+              <Col xs={24} sm={8}>
+                <Card size="small" style={{ textAlign: 'center' }}>
+                  <div style={{ fontSize: '24px', fontWeight: '600', color: '#722ed1' }}>
+                    {stats.departmentCount}
+                  </div>
+                  <div style={{ fontSize: '12px', color: '#666' }}>Departments</div>
+                </Card>
+              </Col>
+            </Row>
 
             {/* Users Table */}
-            <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                <thead>
-                  <tr style={{ background: '#fafafa' }}>
-                    <th style={{ padding: '12px', textAlign: 'left', borderBottom: '1px solid #e8e8e8' }}>
-                      User Info
-                    </th>
-                    <th style={{ padding: '12px', textAlign: 'left', borderBottom: '1px solid #e8e8e8' }}>
-                      Department
-                    </th>
-                    <th style={{ padding: '12px', textAlign: 'left', borderBottom: '1px solid #e8e8e8' }}>
-                      Role
-                    </th>
-                    <th style={{ padding: '12px', textAlign: 'left', borderBottom: '1px solid #e8e8e8' }}>
-                      Status
-                    </th>
-                    <th style={{ padding: '12px', textAlign: 'left', borderBottom: '1px solid #e8e8e8' }}>
-                      Last Login
-                    </th>
-                    <th style={{ padding: '12px', textAlign: 'center', borderBottom: '1px solid #e8e8e8' }}>
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {users.map(user => (
-                    <tr key={user.id}>
-                      <td style={{ padding: '12px', borderBottom: '1px solid #f0f0f0' }}>
-                        <div>
-                          <div style={{ fontWeight: '600', color: '#1890ff' }}>{user.name}</div>
-                          <div style={{ fontSize: '12px', color: '#666' }}>
-                            👤 {user.username}
-                          </div>
-                          <div style={{ fontSize: '12px', color: '#666' }}>
-                            ✉️ {user.email}
-                          </div>
-                        </div>
-                      </td>
-                      <td style={{ padding: '12px', borderBottom: '1px solid #f0f0f0' }}>
-                        <div style={{ fontSize: '12px' }}>{user.department}</div>
-                      </td>
-                      <td style={{ padding: '12px', borderBottom: '1px solid #f0f0f0' }}>
-                        <span style={{
-                          padding: '4px 8px',
-                          borderRadius: '4px',
-                          fontSize: '11px',
-                          fontWeight: '500',
-                          background: user.role === 'admin' ? '#fff2f0' : user.role === 'manager' ? '#e6f7ff' : '#f6ffed',
-                          color: user.role === 'admin' ? '#a8071a' : user.role === 'manager' ? '#0050b3' : '#389e0d'
-                        }}>
-                          {user.role.toUpperCase()}
-                        </span>
-                      </td>
-                      <td style={{ padding: '12px', borderBottom: '1px solid #f0f0f0' }}>
-                        <span style={{
-                          padding: '4px 8px',
-                          borderRadius: '4px',
-                          fontSize: '11px',
-                          background: user.status === 'active' ? '#f6ffed' : '#fff1f0',
-                          color: user.status === 'active' ? '#389e0d' : '#cf1322'
-                        }}>
-                          {user.status.toUpperCase()}
-                        </span>
-                      </td>
-                      <td style={{ padding: '12px', borderBottom: '1px solid #f0f0f0', fontSize: '12px' }}>
-                        {user.lastLogin}
-                      </td>
-                      <td style={{ padding: '12px', borderBottom: '1px solid #f0f0f0', textAlign: 'center' }}>
-                        <button
-                          onClick={() => handleEditUser(user)}
-                          style={{
-                            padding: '4px 8px',
-                            margin: '0 4px',
-                            border: '1px solid #1890ff',
-                            borderRadius: '4px',
-                            background: 'white',
-                            color: '#1890ff',
-                            cursor: 'pointer',
-                            fontSize: '12px'
-                          }}
-                        >
-                          Edit
-                        </button>
-                        <button
-                          onClick={() => handleDeleteUser(user.id)}
-                          style={{
-                            padding: '4px 8px',
-                            margin: '0 4px',
-                            border: '1px solid #ff4d4f',
-                            borderRadius: '4px',
-                            background: 'white',
-                            color: '#ff4d4f',
-                            cursor: 'pointer',
-                            fontSize: '12px'
-                          }}
-                        >
-                          Delete
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <Table
+              columns={columns}
+              dataSource={users}
+              rowKey="id"
+              loading={tableLoading}
+              pagination={{
+                pageSize: 10,
+                showSizeChanger: true,
+                showQuickJumper: true,
+                showTotal: (total, range) => 
+                  `${range[0]}-${range[1]} of ${total} users`,
+              }}
+              scroll={{ x: 800 }}
+            />
           </div>
         </div>
 
         {/* Create/Edit User Modal */}
-        {showCreateModal && (
-          <div style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            background: 'rgba(0,0,0,0.5)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 1000
-          }}>
-            <div style={{
-              background: 'white',
-              borderRadius: '8px',
-              padding: '24px',
-              width: '90%',
-              maxWidth: '600px',
-              maxHeight: '90vh',
-              overflowY: 'auto'
-            }}>
-              <h3 style={{ margin: '0 0 24px' }}>
-                {editingUser ? 'Edit Admin User' : 'Create New Admin User'}
-              </h3>
+        <Modal
+          title={editingUser ? 'Edit Admin User' : 'Create New Admin User'}
+          open={showCreateModal}
+          onCancel={() => setShowCreateModal(false)}
+          footer={null}
+          width={700}
+        >
+          <Form
+            form={form}
+            layout="vertical"
+            onFinish={handleSubmit}
+            disabled={modalLoading}
+          >
+            <Row gutter={[16, 16]}>
+              <Col span={12}>
+                <Form.Item
+                  name="name"
+                  label="Full Name"
+                  rules={[
+                    { required: true, message: 'Please enter full name' },
+                    { min: 2, message: 'Name must be at least 2 characters' }
+                  ]}
+                >
+                  <Input placeholder="Enter full name" />
+                </Form.Item>
+              </Col>
+              <Col span={12}>
+                <Form.Item
+                  name="username"
+                  label="Username"
+                  rules={[
+                    { required: true, message: 'Please enter username' },
+                    { min: 3, message: 'Username must be at least 3 characters' },
+                    { pattern: /^[a-zA-Z0-9_]+$/, message: 'Username can only contain letters, numbers, and underscores' }
+                  ]}
+                >
+                  <Input placeholder="Enter username" />
+                </Form.Item>
+              </Col>
+            </Row>
 
-              <form onSubmit={handleSubmit}>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
-                  <div>
-                    <label style={{ display: 'block', marginBottom: '4px', fontWeight: '500' }}>
-                      Full Name *
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.name}
-                      onChange={(e) => setFormData({...formData, name: e.target.value})}
-                      style={{
-                        width: '100%',
-                        padding: '8px',
-                        border: '1px solid #ddd',
-                        borderRadius: '4px'
-                      }}
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label style={{ display: 'block', marginBottom: '4px', fontWeight: '500' }}>
-                      Username *
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.username}
-                      onChange={(e) => setFormData({...formData, username: e.target.value})}
-                      style={{
-                        width: '100%',
-                        padding: '8px',
-                        border: '1px solid #ddd',
-                        borderRadius: '4px'
-                      }}
-                      required
-                    />
-                  </div>
-                </div>
+            <Row gutter={[16, 16]}>
+              <Col span={12}>
+                <Form.Item
+                  name="email"
+                  label="Email"
+                  rules={[
+                    { required: true, message: 'Please enter email' },
+                    { type: 'email', message: 'Please enter a valid email' }
+                  ]}
+                >
+                  <Input placeholder="Enter email address" />
+                </Form.Item>
+              </Col>
+              <Col span={12}>
+                <Form.Item
+                  name="phone"
+                  label="Phone"
+                  rules={[
+                    { required: true, message: 'Please enter phone number' },
+                    { pattern: /^\+?[1-9]\d{1,14}$/, message: 'Please enter a valid phone number' }
+                  ]}
+                >
+                  <Input placeholder="Enter phone number" />
+                </Form.Item>
+              </Col>
+            </Row>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
-                  <div>
-                    <label style={{ display: 'block', marginBottom: '4px', fontWeight: '500' }}>
-                      Email *
-                    </label>
-                    <input
-                      type="email"
-                      value={formData.email}
-                      onChange={(e) => setFormData({...formData, email: e.target.value})}
-                      style={{
-                        width: '100%',
-                        padding: '8px',
-                        border: '1px solid #ddd',
-                        borderRadius: '4px'
-                      }}
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label style={{ display: 'block', marginBottom: '4px', fontWeight: '500' }}>
-                      Phone *
-                    </label>
-                    <input
-                      type="tel"
-                      value={formData.phone}
-                      onChange={(e) => setFormData({...formData, phone: e.target.value})}
-                      style={{
-                        width: '100%',
-                        padding: '8px',
-                        border: '1px solid #ddd',
-                        borderRadius: '4px'
-                      }}
-                      required
-                    />
-                  </div>
-                </div>
-
-                <div style={{ marginBottom: '16px' }}>
-                  <label style={{ display: 'block', marginBottom: '4px', fontWeight: '500' }}>
-                    Password {editingUser ? '(leave blank to keep current)' : '*'}
-                  </label>
-                  <input
-                    type="password"
-                    value={formData.password}
-                    onChange={(e) => setFormData({...formData, password: e.target.value})}
-                    style={{
-                      width: '100%',
-                      padding: '8px',
-                      border: '1px solid #ddd',
-                      borderRadius: '4px'
-                    }}
-                    required={!editingUser}
-                  />
-                </div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
-                  <div>
-                    <label style={{ display: 'block', marginBottom: '4px', fontWeight: '500' }}>
-                      Department *
-                    </label>
-                    <select
-                      value={formData.department}
-                      onChange={(e) => setFormData({...formData, department: e.target.value})}
-                      style={{
-                        width: '100%',
-                        padding: '8px',
-                        border: '1px solid #ddd',
-                        borderRadius: '4px'
-                      }}
-                      required
-                    >
-                      <option value="">Select Department</option>
-                      {departments.map(dept => (
-                        <option key={dept} value={dept}>{dept}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label style={{ display: 'block', marginBottom: '4px', fontWeight: '500' }}>
-                      Role *
-                    </label>
-                    <select
-                      value={formData.role}
-                      onChange={(e) => setFormData({...formData, role: e.target.value})}
-                      style={{
-                        width: '100%',
-                        padding: '8px',
-                        border: '1px solid #ddd',
-                        borderRadius: '4px'
-                      }}
-                      required
-                    >
-                      <option value="">Select Role</option>
-                      {roles.map(role => (
-                        <option key={role.value} value={role.value}>{role.label}</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
-                <div style={{ marginBottom: '24px' }}>
-                  <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500' }}>
-                    Permissions *
-                  </label>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '8px' }}>
-                    {availablePermissions.map(permission => (
-                      <label key={permission} style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
-                        <input
-                          type="checkbox"
-                          checked={formData.permissions.includes(permission)}
-                          onChange={() => handlePermissionChange(permission)}
-                          style={{ marginRight: '8px' }}
-                        />
-                        <span style={{ fontSize: '14px', textTransform: 'capitalize' }}>
-                          {permission}
-                        </span>
-                      </label>
+            <Row gutter={[16, 16]}>
+              <Col span={12}>
+                <Form.Item
+                  name="password"
+                  label={editingUser ? 'Password (leave blank to keep current)' : 'Password'}
+                  rules={[
+                    { required: !editingUser, message: 'Please enter password' },
+                    { min: 6, message: 'Password must be at least 6 characters' }
+                  ]}
+                >
+                  <Input.Password placeholder="Enter password" />
+                </Form.Item>
+              </Col>
+              <Col span={12}>
+                <Form.Item
+                  name="role"
+                  label="Role"
+                  rules={[{ required: true, message: 'Please select a role' }]}
+                >
+                  <Select placeholder="Select role">
+                    {roles.map(role => (
+                      <Option key={role.value} value={role.value}>{role.label}</Option>
                     ))}
-                  </div>
-                </div>
+                  </Select>
+                </Form.Item>
+              </Col>
+            </Row>
 
-                <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
-                  <button
-                    type="button"
-                    onClick={() => setShowCreateModal(false)}
-                    style={{
-                      padding: '10px 20px',
-                      border: '1px solid #ddd',
-                      borderRadius: '4px',
-                      background: 'white',
-                      cursor: 'pointer'
-                    }}
+            <Form.Item
+              name="department"
+              label="Department"
+              rules={[{ required: true, message: 'Please select a department' }]}
+            >
+              <Select placeholder="Select department">
+                {departments.map(dept => (
+                  <Option key={dept.code} value={dept.name}>{dept.name}</Option>
+                ))}
+              </Select>
+            </Form.Item>
+
+            <Form.Item label="Permissions" required>
+              <div style={{ 
+                display: 'grid', 
+                gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', 
+                gap: '8px',
+                padding: '12px',
+                border: '1px solid #d9d9d9',
+                borderRadius: '6px'
+              }}>
+                {availablePermissions.map(permission => (
+                  <Checkbox
+                    key={permission}
+                    checked={formData.permissions.includes(permission)}
+                    onChange={() => handlePermissionChange(permission)}
                   >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    style={{
-                      padding: '10px 20px',
-                      border: 'none',
-                      borderRadius: '4px',
-                      background: 'linear-gradient(135deg, #1e3c72, #2a5298)',
-                      color: 'white',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    {editingUser ? 'Update User' : 'Create User'}
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        )}
+                    <span style={{ textTransform: 'capitalize', fontSize: '14px' }}>
+                      {permission}
+                    </span>
+                  </Checkbox>
+                ))}
+              </div>
+              {formData.permissions.length === 0 && (
+                <Text type="danger" style={{ fontSize: '12px' }}>
+                  Please select at least one permission
+                </Text>
+              )}
+            </Form.Item>
+
+            <Form.Item style={{ marginBottom: 0, marginTop: '24px' }}>
+              <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+                <Button onClick={() => setShowCreateModal(false)}>
+                  Cancel
+                </Button>
+                <Button 
+                  type="primary" 
+                  htmlType="submit"
+                  loading={modalLoading}
+                  disabled={formData.permissions.length === 0}
+                  style={{
+                    background: 'linear-gradient(135deg, #1e3c72, #2a5298)',
+                    border: 'none'
+                  }}
+                >
+                  {editingUser ? 'Update User' : 'Create User'}
+                </Button>
+              </div>
+            </Form.Item>
+          </Form>
+        </Modal>
       </div>
     </>
   );
