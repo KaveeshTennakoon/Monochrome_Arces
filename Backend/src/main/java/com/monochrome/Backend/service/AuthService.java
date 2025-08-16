@@ -7,6 +7,7 @@ import com.monochrome.Backend.dto.RefreshRequest;
 import com.monochrome.Backend.dto.UserDto;
 import com.monochrome.Backend.entity.RefreshToken;
 import com.monochrome.Backend.entity.User;
+import com.monochrome.Backend.repository.PermissionRepository;
 import com.monochrome.Backend.repository.RefreshTokenRepository;
 import com.monochrome.Backend.repository.UserRepository;
 import com.monochrome.Backend.security.JwtService;
@@ -33,6 +34,7 @@ public class AuthService {
     private final JwtService jwtService;
     private final UserRepository userRepository;
     private final RefreshTokenRepository refreshTokenRepository;
+    private final PermissionRepository permissionRepository;
 
     @Transactional
     public AuthResponse login(AuthRequest req) {
@@ -91,6 +93,50 @@ public class AuthService {
                 .department(user.getDepartment())
                 .permissions(permissions)
                 .loginTime(Instant.now())
+                .build();
+    }
+
+    @Transactional
+    public AuthResponse register(com.monochrome.Backend.dto.RegisterRequest req, org.springframework.security.crypto.password.PasswordEncoder encoder) {
+        // Ensure current user is SUPERADMIN
+        var auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+        java.util.Collection<org.springframework.security.core.GrantedAuthority> authorities =
+                auth != null ? (java.util.Collection<org.springframework.security.core.GrantedAuthority>) auth.getAuthorities() : java.util.List.of();
+        boolean isSuperAdmin = authorities.stream().anyMatch(a -> "ROLE_SUPERADMIN".equals(a.getAuthority()));
+        if (!isSuperAdmin) {
+            throw new org.springframework.security.access.AccessDeniedException("Only SUPERADMIN can register admins");
+        }
+        if (userRepository.existsByUsername(req.getUsername())) {
+            throw new IllegalArgumentException("Username already exists");
+        }
+        if (userRepository.existsByEmail(req.getEmail())) {
+            throw new IllegalArgumentException("Email already exists");
+        }
+        // Force role to ADMIN regardless of input
+        com.monochrome.Backend.entity.Role role = com.monochrome.Backend.entity.Role.ADMIN;
+        User user = User.builder()
+                .username(req.getUsername())
+                .email(req.getEmail())
+                .password(encoder.encode(req.getPassword()))
+                .name(req.getName())
+                .department(req.getDepartment())
+                .role(role)
+                .build();
+        // Assign permissions if provided
+        if (req.getPermissions() != null && !req.getPermissions().isEmpty()) {
+            java.util.Set<com.monochrome.Backend.entity.Permission> perms = new java.util.HashSet<>();
+            for (String p : req.getPermissions()) {
+                permissionRepository.findByName(p).ifPresent(perms::add);
+            }
+            user.setPermissions(perms);
+        }
+        userRepository.save(user);
+        String access = jwtService.generateAccessToken(user);
+        String refresh = generateAndStoreRefreshToken(user);
+        return com.monochrome.Backend.dto.AuthResponse.builder()
+                .token(access)
+                .refreshToken(refresh)
+                .user(toDto(user))
                 .build();
     }
 }

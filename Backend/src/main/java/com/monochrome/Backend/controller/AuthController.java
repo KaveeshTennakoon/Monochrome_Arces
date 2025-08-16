@@ -8,6 +8,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
@@ -18,6 +19,13 @@ import org.springframework.web.bind.annotation.*;
 public class AuthController {
 
     private final AuthService authService;
+    private final org.springframework.security.crypto.password.PasswordEncoder passwordEncoder;
+
+    @PreAuthorize("hasRole('SUPERADMIN')")
+    @PostMapping("/register")
+    public ResponseEntity<AuthResponse> register(@RequestBody @Valid RegisterRequest req) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(authService.register(req, passwordEncoder));
+    }
 
     @PostMapping("/login")
     public ResponseEntity<AuthResponse> login(@RequestBody @Valid AuthRequest req) {
