@@ -1,0 +1,37 @@
+version: '3.8'
+services:
+  mysql:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: abc123
+      MYSQL_DATABASE: monochrome
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+
+  backend:
+    build: ./Backend
+    ports:
+      - "8080:8080"
+    depends_on:
+      - mysql
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/monochrome
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: abc123
+
+  frontend:
+    build: ./Frontend
+    ports:
+      - "3000:3000"
+    environment:
+      VITE_BACKEND_BASE_URL: http://localhost:8080/api
+
+  admin-panel:
+    build: ./admin-panel
+    ports:
+      - "3001:3000"
+
+volumes:
+  mysql_data:
