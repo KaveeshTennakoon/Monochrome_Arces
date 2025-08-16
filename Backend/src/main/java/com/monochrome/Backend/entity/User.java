@@ -1,5 +1,7 @@
 package com.monochrome.Backend.entity;
 
+
+import lombok.*;
 import java.time.Instant;
 import java.util.HashSet;
 import java.util.Set;
@@ -47,10 +49,8 @@ public class User {
     @Column(nullable = false)
     private String name;
 
-    // National Identity Card number for clients/citizens
     @Column(unique = true)
     private String nic;
-
     private String department;
 
     @Enumerated(EnumType.STRING)
