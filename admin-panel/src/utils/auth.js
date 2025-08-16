@@ -1,3 +1,4 @@
+// utils/auth.js - Updated version with API integration
 export const AUTH_STORAGE_KEY = 'adminUser';
 export const TOKEN_STORAGE_KEY = 'adminToken';
 
@@ -8,7 +9,24 @@ export const isAuthenticated = () => {
   const token = localStorage.getItem(TOKEN_STORAGE_KEY);
   const user = localStorage.getItem(AUTH_STORAGE_KEY);
   
-  return !!(token && user);
+  if (!token || !user) return false;
+  
+  try {
+    // Parse user data to validate
+    const userData = JSON.parse(user);
+    
+    // Check if token is expired (if expiry is stored)
+    if (userData.tokenExpiry && new Date() > new Date(userData.tokenExpiry)) {
+      logout();
+      return false;
+    }
+    
+    return !!(token && userData);
+  } catch (error) {
+    console.error('Error validating authentication:', error);
+    logout();
+    return false;
+  }
 };
 
 // Get current user data
@@ -30,35 +48,34 @@ export const getAuthToken = () => {
   return localStorage.getItem(TOKEN_STORAGE_KEY);
 };
 
-// Logout user
-export const logout = () => {
+// Set authentication data
+export const setAuthData = (user, token, expiresIn = null) => {
   if (typeof window === 'undefined') return;
   
-  localStorage.removeItem(AUTH_STORAGE_KEY);
-  localStorage.removeItem(TOKEN_STORAGE_KEY);
-  
-  // Redirect to login
-  window.location.href = '/admin/login';
+  try {
+    // Add expiry time if provided
+    if (expiresIn) {
+      user.tokenExpiry = new Date(Date.now() + expiresIn * 1000).toISOString();
+    }
+    
+    localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(user));
+    localStorage.setItem(TOKEN_STORAGE_KEY, token);
+  } catch (error) {
+    console.error('Error setting auth data:', error);
+  }
 };
 
-// Check if user has specific permission
-export const hasPermission = (permission) => {
-  const user = getCurrentUser();
-  if (!user || !user.permissions) return false;
+// Update user data (useful for profile updates)
+export const updateUser = (updatedUserData) => {
+  if (typeof window === 'undefined') return;
   
-  return user.permissions.includes(permission);
-};
-
-// Check if user has specific role
-export const hasRole = (role) => {
-  const user = getCurrentUser();
-  if (!user) return false;
-  
-  return user.role === role;
-};
-
-// Get user role
-export const getUserRole = () => {
-  const user = getCurrentUser();
-  return user ? user.role : null;
+  try {
+    const currentUser = getCurrentUser();
+    if (currentUser) {
+      const updatedUser = { ...currentUser, ...updatedUserData };
+      localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(updatedUser));
+    }
+  } catch (error) {
+    console.error('Error updating user data:', error);
+  }
 };

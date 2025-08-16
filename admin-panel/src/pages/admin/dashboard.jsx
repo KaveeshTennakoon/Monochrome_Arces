@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import AdminLayout from '../../components/admin/AdminLayout';
 import { 
   Typography, 
@@ -13,7 +13,9 @@ import {
   Tag,
   Space,
   Button,
-  Alert
+  Alert,
+  Spin,
+  message
 } from 'antd';
 import {
   UserOutlined,
@@ -31,8 +33,11 @@ import {
   WarningOutlined,
   DashboardOutlined,
   FileTextOutlined,
-  TeamOutlined
+  TeamOutlined,
+  ReloadOutlined
 } from '@ant-design/icons';
+import { analyticsAPI, departmentsAPI, handleAPIError } from '../../utils/api';
+import dayjs from 'dayjs';
 
 const { Title, Text } = Typography;
 const { Option } = Select;
@@ -40,189 +45,126 @@ const { RangePicker } = DatePicker;
 
 const AnalyticsDashboard = () => {
   const [selectedDepartment, setSelectedDepartment] = useState('all');
+  const [selectedDateRange, setSelectedDateRange] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  
+  // Data states
+  const [kpiData, setKpiData] = useState({});
+  const [departmentData, setDepartmentData] = useState([]);
+  const [departments, setDepartments] = useState([]);
+  const [optimizationInsights, setOptimizationInsights] = useState([]);
+  const [trendsData, setTrendsData] = useState([]);
+  const [peakHoursData, setPeakHoursData] = useState([]);
 
-  // Sample analytics data
-  const kpiData = {
-    totalAppointments: 1247,
-    totalAppointmentsChange: 12.5,
-    completedAppointments: 1089,
-    completedRate: 87.3,
-    averageWaitTime: 18.5,
-    waitTimeChange: -8.2,
-    citizenSatisfaction: 4.2,
-    satisfactionChange: 5.8,
-    peakHours: ['10:00 AM', '11:00 AM', '2:00 PM'],
-    totalRevenue: 'LKR 2,847,500',
-    revenueChange: 15.3
+  // Load all dashboard data
+  useEffect(() => {
+    loadDashboardData();
+  }, []);
+
+  // Reload data when filters change
+  useEffect(() => {
+    if (!loading) {
+      loadAnalyticsData();
+    }
+  }, [selectedDepartment, selectedDateRange]);
+
+  const loadDashboardData = async () => {
+    try {
+      setLoading(true);
+      
+      // Load initial data in parallel
+      await Promise.all([
+        loadDepartments(),
+        loadAnalyticsData(),
+      ]);
+    } catch (error) {
+      handleAPIError(error);
+      message.error('Failed to load dashboard data');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  // Department performance data
-  const departmentData = [
-    {
-      key: '1',
-      department: 'Land Registry',
-      code: 'LR',
-      icon: <HomeOutlined />,
-      totalAppointments: 342,
-      completed: 298,
-      cancelled: 31,
-      pending: 13,
-      completionRate: 87.1,
-      avgProcessingTime: 45,
-      revenue: 'LKR 856,000',
-      satisfaction: 4.3,
-      trend: 'up'
-    },
-    {
-      key: '2',
-      department: 'Motor Traffic',
-      code: 'DMT',
-      icon: <CarOutlined />,
-      totalAppointments: 289,
-      completed: 267,
-      cancelled: 18,
-      pending: 4,
-      completionRate: 92.4,
-      avgProcessingTime: 28,
-      revenue: 'LKR 423,500',
-      satisfaction: 4.1,
-      trend: 'up'
-    },
-    {
-      key: '3',
-      department: 'Immigration',
-      code: 'DIE',
-      icon: <IdcardOutlined />,
-      totalAppointments: 234,
-      completed: 201,
-      cancelled: 25,
-      pending: 8,
-      completionRate: 85.9,
-      avgProcessingTime: 52,
-      revenue: 'LKR 634,500',
-      satisfaction: 4.0,
-      trend: 'down'
-    },
-    {
-      key: '4',
-      department: 'Municipal',
-      code: 'MUN',
-      icon: <BankOutlined />,
-      totalAppointments: 156,
-      completed: 134,
-      cancelled: 12,
-      pending: 10,
-      completionRate: 85.9,
-      avgProcessingTime: 67,
-      revenue: 'LKR 567,800',
-      satisfaction: 3.9,
-      trend: 'up'
-    },
-    {
-      key: '5',
-      department: 'Health',
-      code: 'MOH',
-      icon: <MedicineBoxOutlined />,
-      totalAppointments: 128,
-      completed: 116,
-      cancelled: 8,
-      pending: 4,
-      completionRate: 90.6,
-      avgProcessingTime: 22,
-      revenue: 'LKR 187,200',
-      satisfaction: 4.5,
-      trend: 'up'
-    },
-    {
-      key: '6',
-      department: 'Education',
-      code: 'MOE',
-      icon: <BookOutlined />,
-      totalAppointments: 98,
-      completed: 73,
-      cancelled: 15,
-      pending: 10,
-      completionRate: 74.5,
-      avgProcessingTime: 38,
-      revenue: 'LKR 178,500',
-      satisfaction: 4.2,
-      trend: 'down'
+  const loadDepartments = async () => {
+    try {
+      const response = await departmentsAPI.getDepartments();
+      setDepartments(response.data || []);
+    } catch (error) {
+      handleAPIError(error);
     }
-  ];
+  };
 
-  // Time-based trends data
-  const trendsData = [
-    { month: 'Jan', appointments: 980, completed: 856, satisfaction: 4.1 },
-    { month: 'Feb', appointments: 1120, completed: 975, satisfaction: 4.0 },
-    { month: 'Mar', appointments: 1050, completed: 918, satisfaction: 4.2 },
-    { month: 'Apr', appointments: 1180, completed: 1032, satisfaction: 4.1 },
-    { month: 'May', appointments: 1340, completed: 1169, satisfaction: 4.3 },
-    { month: 'Jun', appointments: 1247, completed: 1089, satisfaction: 4.2 },
-  ];
+  const loadAnalyticsData = async () => {
+    try {
+      const filters = {
+        department: selectedDepartment !== 'all' ? selectedDepartment : undefined,
+        startDate: selectedDateRange?.[0]?.format('YYYY-MM-DD'),
+        endDate: selectedDateRange?.[1]?.format('YYYY-MM-DD'),
+      };
 
-  // Peak hours data
-  const peakHoursData = [
-    { time: '09:00', appointments: 45 },
-    { time: '10:00', appointments: 89 },
-    { time: '11:00', appointments: 92 },
-    { time: '12:00', appointments: 34 },
-    { time: '14:00', appointments: 78 },
-    { time: '15:00', appointments: 85 },
-    { time: '16:00', appointments: 67 },
-    { time: '17:00', appointments: 23 }
-  ];
+      // Load analytics data in parallel
+      const [
+        kpiResponse,
+        departmentResponse,
+        insightsResponse,
+        trendsResponse,
+        peakHoursResponse
+      ] = await Promise.all([
+        analyticsAPI.getKPIs(filters),
+        analyticsAPI.getDepartmentPerformance(filters.startDate && filters.endDate ? {
+          start: filters.startDate,
+          end: filters.endDate
+        } : null),
+        analyticsAPI.getOptimizationInsights(),
+        analyticsAPI.getAppointmentTrends('6months'),
+        analyticsAPI.getPeakHours(filters.department)
+      ]);
 
-  // Department distribution for pie chart
-  const departmentDistribution = [
-    { name: 'Land Registry', value: 342, color: '#52c41a' },
-    { name: 'Motor Traffic', value: 289, color: '#1890ff' },
-    { name: 'Immigration', value: 234, color: '#722ed1' },
-    { name: 'Municipal', value: 156, color: '#faad14' },
-    { name: 'Health', value: 128, color: '#f5222d' },
-    { name: 'Education', value: 98, color: '#fa8c16' }
-  ];
+      setKpiData(kpiResponse.data || {});
+      setDepartmentData(departmentResponse.data || []);
+      setOptimizationInsights(insightsResponse.data || []);
+      setTrendsData(trendsResponse.data || []);
+      setPeakHoursData(peakHoursResponse.data || []);
 
-  // No-show rates by department
-  const noShowData = [
-    { department: 'LR', rate: 9.1 },
-    { department: 'DMT', rate: 6.2 },
-    { department: 'DIE', rate: 10.7 },
-    { department: 'MUN', rate: 7.7 },
-    { department: 'MOH', rate: 6.3 },
-    { department: 'MOE', rate: 15.3 }
-  ];
-
-  // Resource optimization insights
-  const optimizationInsights = [
-    {
-      type: 'peak_time',
-      title: 'Peak Hour Optimization',
-      description: 'Consider adding more staff during 10-11 AM and 2-3 PM slots',
-      impact: 'Could reduce wait times by 23%',
-      priority: 'high'
-    },
-    {
-      type: 'department_load',
-      title: 'Department Load Balancing',
-      description: 'Land Registry showing high volume - consider additional officers',
-      impact: 'Could improve completion rate by 5%',
-      priority: 'medium'
-    },
-    {
-      type: 'no_show',
-      title: 'No-Show Rate Reduction',
-      description: 'Education dept has 15.3% no-show rate - implement reminder system',
-      impact: 'Could save 2-3 hours daily',
-      priority: 'high'
-    },
-    {
-      type: 'processing_time',
-      title: 'Processing Time Improvement',
-      description: 'Municipal services taking 67 min avg - review workflow',
-      impact: 'Could increase daily capacity by 15%',
-      priority: 'medium'
+    } catch (error) {
+      handleAPIError(error);
+      message.error('Failed to load analytics data');
     }
-  ];
+  };
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await loadAnalyticsData();
+    setRefreshing(false);
+    message.success('Dashboard data refreshed');
+  };
+
+  const getDepartmentIcon = (departmentCode) => {
+    const icons = {
+      'LR': <HomeOutlined />,
+      'DMT': <CarOutlined />,
+      'DIE': <IdcardOutlined />,
+      'MUN': <BankOutlined />,
+      'MOH': <MedicineBoxOutlined />,
+      'MOE': <BookOutlined />
+    };
+    return icons[departmentCode] || <BankOutlined />;
+  };
+
+  const getPriorityColor = (priority) => {
+    return priority === 'high' ? '#ff4d4f' : priority === 'medium' ? '#faad14' : '#52c41a';
+  };
+
+  const getPriorityIcon = (type) => {
+    const icons = {
+      'peak_time': <ClockCircleOutlined />,
+      'department_load': <TeamOutlined />,
+      'no_show': <WarningOutlined />,
+      'processing_time': <DashboardOutlined />
+    };
+    return icons[type] || <FileTextOutlined />;
+  };
 
   // Department performance table columns
   const departmentColumns = [
@@ -231,12 +173,12 @@ const AnalyticsDashboard = () => {
       key: 'department',
       render: (_, record) => (
         <Space>
-          {record.icon}
+          {getDepartmentIcon(record.departmentCode)}
           <div>
-            <Text strong>{record.department}</Text>
+            <Text strong>{record.departmentName}</Text>
             <br />
             <Text type="secondary" style={{ fontSize: '12px' }}>
-              {record.code}
+              {record.departmentCode}
             </Text>
           </div>
         </Space>
@@ -293,19 +235,15 @@ const AnalyticsDashboard = () => {
     }
   ];
 
-  const getPriorityColor = (priority) => {
-    return priority === 'high' ? '#ff4d4f' : priority === 'medium' ? '#faad14' : '#52c41a';
-  };
-
-  const getPriorityIcon = (type) => {
-    const icons = {
-      'peak_time': <ClockCircleOutlined />,
-      'department_load': <TeamOutlined />,
-      'no_show': <WarningOutlined />,
-      'processing_time': <DashboardOutlined />
-    };
-    return icons[type] || <FileTextOutlined />;
-  };
+  if (loading) {
+    return (
+      <AdminLayout pageTitle="Analytics Dashboard">
+        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '400px' }}>
+          <Spin size="large" />
+        </div>
+      </AdminLayout>
+    );
+  }
 
   return (
     <AdminLayout pageTitle="Analytics Dashboard">
@@ -329,16 +267,25 @@ const AnalyticsDashboard = () => {
                   placeholder="Department"
                 >
                   <Option value="all">All Departments</Option>
-                  <Option value="LR">Land Registry</Option>
-                  <Option value="DMT">Motor Traffic</Option>
-                  <Option value="DIE">Immigration</Option>
-                  <Option value="MUN">Municipal</Option>
-                  <Option value="MOH">Health</Option>
-                  <Option value="MOE">Education</Option>
+                  {departments.map(dept => (
+                    <Option key={dept.code} value={dept.code}>
+                      {dept.name}
+                    </Option>
+                  ))}
                 </Select>
                 <RangePicker
                   format="MMM DD"
+                  value={selectedDateRange}
+                  onChange={setSelectedDateRange}
+                  allowClear
                 />
+                <Button 
+                  icon={<ReloadOutlined />} 
+                  onClick={handleRefresh}
+                  loading={refreshing}
+                >
+                  Refresh
+                </Button>
               </Space>
             </Col>
           </Row>
@@ -350,12 +297,14 @@ const AnalyticsDashboard = () => {
             <Card>
               <Statistic
                 title="Total Appointments"
-                value={kpiData.totalAppointments}
+                value={kpiData.totalAppointments || 0}
                 prefix={<CalendarOutlined />}
                 suffix={
-                  <span style={{ fontSize: '14px', color: '#52c41a' }}>
-                    <ArrowUpOutlined /> +{kpiData.totalAppointmentsChange}%
-                  </span>
+                  kpiData.totalAppointmentsChange ? (
+                    <span style={{ fontSize: '14px', color: kpiData.totalAppointmentsChange > 0 ? '#52c41a' : '#ff4d4f' }}>
+                      {kpiData.totalAppointmentsChange > 0 ? <ArrowUpOutlined /> : <ArrowDownOutlined />} {Math.abs(kpiData.totalAppointmentsChange)}%
+                    </span>
+                  ) : null
                 }
                 valueStyle={{ color: '#1890ff' }}
               />
@@ -365,13 +314,9 @@ const AnalyticsDashboard = () => {
             <Card>
               <Statistic
                 title="Completion Rate"
-                value={kpiData.completedRate}
+                value={kpiData.completedRate || 0}
                 prefix={<CheckCircleOutlined />}
-                suffix={
-                  <span style={{ fontSize: '14px' }}>
-                    %
-                  </span>
-                }
+                suffix="%"
                 valueStyle={{ color: '#52c41a' }}
               />
             </Card>
@@ -380,12 +325,14 @@ const AnalyticsDashboard = () => {
             <Card>
               <Statistic
                 title="Avg. Wait Time"
-                value={kpiData.averageWaitTime}
+                value={kpiData.averageWaitTime || 0}
                 prefix={<ClockCircleOutlined />}
                 suffix={
-                  <span style={{ fontSize: '14px', color: '#52c41a' }}>
-                    <ArrowDownOutlined /> {kpiData.waitTimeChange}%
-                  </span>
+                  kpiData.waitTimeChange ? (
+                    <span style={{ fontSize: '14px', color: kpiData.waitTimeChange < 0 ? '#52c41a' : '#ff4d4f' }}>
+                      {kpiData.waitTimeChange < 0 ? <ArrowDownOutlined /> : <ArrowUpOutlined />} {Math.abs(kpiData.waitTimeChange)}%
+                    </span>
+                  ) : null
                 }
                 valueStyle={{ color: '#faad14' }}
               />
@@ -396,12 +343,14 @@ const AnalyticsDashboard = () => {
             <Card>
               <Statistic
                 title="Citizen Satisfaction"
-                value={kpiData.citizenSatisfaction}
+                value={kpiData.citizenSatisfaction || 0}
                 prefix={<UserOutlined />}
                 suffix={
-                  <span style={{ fontSize: '14px', color: '#52c41a' }}>
-                    <ArrowUpOutlined /> +{kpiData.satisfactionChange}%
-                  </span>
+                  kpiData.satisfactionChange ? (
+                    <span style={{ fontSize: '14px', color: kpiData.satisfactionChange > 0 ? '#52c41a' : '#ff4d4f' }}>
+                      {kpiData.satisfactionChange > 0 ? <ArrowUpOutlined /> : <ArrowDownOutlined />} {Math.abs(kpiData.satisfactionChange)}%
+                    </span>
+                  ) : null
                 }
                 valueStyle={{ color: '#722ed1' }}
               />
@@ -416,36 +365,18 @@ const AnalyticsDashboard = () => {
           <Col xs={24} lg={12}>
             <Card title="Top Performing Departments" extra={<Button size="small">View All</Button>}>
               <Space direction="vertical" style={{ width: '100%' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0' }}>
-                  <Space>
-                    <CarOutlined style={{ color: '#1890ff' }} />
-                    <Text>Motor Traffic</Text>
-                  </Space>
-                  <div>
-                    <Progress percent={92} size="small" style={{ width: 100 }} />
-                    <Text style={{ marginLeft: 8, fontSize: '12px' }}>92.4%</Text>
+                {departmentData.slice(0, 3).map((dept, index) => (
+                  <div key={dept.departmentCode} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0' }}>
+                    <Space>
+                      {getDepartmentIcon(dept.departmentCode)}
+                      <Text>{dept.departmentName}</Text>
+                    </Space>
+                    <div>
+                      <Progress percent={dept.completionRate} size="small" style={{ width: 100 }} />
+                      <Text style={{ marginLeft: 8, fontSize: '12px' }}>{dept.completionRate}%</Text>
+                    </div>
                   </div>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0' }}>
-                  <Space>
-                    <MedicineBoxOutlined style={{ color: '#52c41a' }} />
-                    <Text>Health Services</Text>
-                  </Space>
-                  <div>
-                    <Progress percent={91} size="small" style={{ width: 100 }} />
-                    <Text style={{ marginLeft: 8, fontSize: '12px' }}>90.6%</Text>
-                  </div>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0' }}>
-                  <Space>
-                    <HomeOutlined style={{ color: '#722ed1' }} />
-                    <Text>Land Registry</Text>
-                  </Space>
-                  <div>
-                    <Progress percent={87} size="small" style={{ width: 100 }} />
-                    <Text style={{ marginLeft: 8, fontSize: '12px' }}>87.1%</Text>
-                  </div>
-                </div>
+                ))}
               </Space>
             </Card>
           </Col>
@@ -454,12 +385,14 @@ const AnalyticsDashboard = () => {
           <Col xs={24} lg={12}>
             <Card title="Peak Hours Analysis" extra={<Button size="small">Optimize</Button>}>
               <div style={{ textAlign: 'center', padding: '20px 0' }}>
-                <Title level={3} style={{ color: '#1890ff', margin: 0 }}>10:00 - 11:00 AM</Title>
+                <Title level={3} style={{ color: '#1890ff', margin: 0 }}>
+                  {peakHoursData.length > 0 ? peakHoursData[0]?.time || '10:00 - 11:00 AM' : '10:00 - 11:00 AM'}
+                </Title>
                 <Text type="secondary">Busiest appointment slot</Text>
                 <div style={{ marginTop: 16 }}>
                   <Statistic
                     title="Average appointments per hour"
-                    value={89}
+                    value={peakHoursData.length > 0 ? peakHoursData[0]?.appointments || 89 : 89}
                     prefix={<ClockCircleOutlined />}
                     valueStyle={{ fontSize: '24px' }}
                   />
@@ -478,20 +411,22 @@ const AnalyticsDashboard = () => {
           <Col xs={24} lg={12}>
             <Card title="Department Issues" extra={<Button size="small">View All</Button>}>
               <Space direction="vertical" style={{ width: '100%' }}>
-                <Alert
-                  message="Education Dept - High No-Show Rate"
-                  description="15.3% no-show rate detected. Consider SMS reminders."
-                  type="warning"
-                  showIcon
-                  action={<Button size="small">Fix</Button>}
-                />
-                <Alert
-                  message="Municipal - Long Processing Time"
-                  description="67 min average. Review workflow efficiency."
-                  type="info"
-                  showIcon
-                  action={<Button size="small">Optimize</Button>}
-                />
+                {departmentData.filter(dept => dept.completionRate < 80 || dept.avgProcessingTime > 60).slice(0, 2).map((dept, index) => (
+                  <Alert
+                    key={dept.departmentCode}
+                    message={`${dept.departmentName} - ${dept.completionRate < 80 ? 'Low Completion Rate' : 'Long Processing Time'}`}
+                    description={dept.completionRate < 80 ? 
+                      `${dept.completionRate}% completion rate detected. Review workflow.` :
+                      `${dept.avgProcessingTime} min average. Optimize processes.`
+                    }
+                    type="warning"
+                    showIcon
+                    action={<Button size="small">Fix</Button>}
+                  />
+                ))}
+                {departmentData.filter(dept => dept.completionRate < 80 || dept.avgProcessingTime > 60).length === 0 && (
+                  <Text type="secondary">No critical issues detected</Text>
+                )}
               </Space>
             </Card>
           </Col>
@@ -499,75 +434,67 @@ const AnalyticsDashboard = () => {
           <Col xs={24} lg={12}>
             <Card title="Resource Allocation" extra={<Button size="small">Rebalance</Button>}>
               <Space direction="vertical" style={{ width: '100%' }}>
-                <div>
-                  <Text strong>Land Registry</Text>
-                  <div style={{ display: 'flex', alignItems: 'center', marginTop: 4 }}>
-                    <Progress percent={85} status="active" style={{ flex: 1 }} />
-                    <Text style={{ marginLeft: 8, fontSize: '12px' }}>342 appointments</Text>
+                {departmentData.slice(0, 3).map((dept, index) => (
+                  <div key={dept.departmentCode}>
+                    <Text strong>{dept.departmentName}</Text>
+                    <div style={{ display: 'flex', alignItems: 'center', marginTop: 4 }}>
+                      <Progress percent={Math.min((dept.totalAppointments / Math.max(...departmentData.map(d => d.totalAppointments))) * 100, 100)} 
+                               status={dept.totalAppointments > 300 ? "active" : "normal"} 
+                               style={{ flex: 1 }} />
+                      <Text style={{ marginLeft: 8, fontSize: '12px' }}>{dept.totalAppointments} appointments</Text>
+                    </div>
                   </div>
-                </div>
-                <div>
-                  <Text strong>Motor Traffic</Text>
-                  <div style={{ display: 'flex', alignItems: 'center', marginTop: 4 }}>
-                    <Progress percent={70} style={{ flex: 1 }} />
-                    <Text style={{ marginLeft: 8, fontSize: '12px' }}>289 appointments</Text>
-                  </div>
-                </div>
-                <div>
-                  <Text strong>Immigration</Text>
-                  <div style={{ display: 'flex', alignItems: 'center', marginTop: 4 }}>
-                    <Progress percent={58} style={{ flex: 1 }} />
-                    <Text style={{ marginLeft: 8, fontSize: '12px' }}>234 appointments</Text>
-                  </div>
-                </div>
+                ))}
               </Space>
             </Card>
           </Col>
         </Row>
 
         {/* Optimization Insights */}
-        <Row gutter={[16, 16]} style={{ marginBottom: '24px' }}>
-          <Col span={24}>
-            <Card title="Optimization Recommendations" extra={<Button type="primary">Implement All</Button>}>
-              <Row gutter={[16, 16]}>
-                {optimizationInsights.map((insight, index) => (
-                  <Col xs={24} md={12} key={index}>
-                    <Alert
-                      message={
-                        <div style={{ display: 'flex', alignItems: 'center' }}>
-                          {getPriorityIcon(insight.type)}
-                          <Text strong style={{ marginLeft: 8 }}>{insight.title}</Text>
-                          <Tag 
-                            color={getPriorityColor(insight.priority)} 
-                            style={{ marginLeft: 'auto' }}
-                          >
-                            {insight.priority.toUpperCase()}
-                          </Tag>
-                        </div>
-                      }
-                      description={
-                        <div>
-                          <Text>{insight.description}</Text>
-                          <br />
-                          <Text type="secondary" style={{ fontSize: '12px' }}>
-                            <strong>Impact:</strong> {insight.impact}
-                          </Text>
-                        </div>
-                      }
-                      type={insight.priority === 'high' ? 'warning' : 'info'}
-                      showIcon
-                      action={
-                        <Button size="small" type="primary">
-                          Apply
-                        </Button>
-                      }
-                    />
-                  </Col>
-                ))}
-              </Row>
-            </Card>
-          </Col>
-        </Row>
+        {optimizationInsights.length > 0 && (
+          <Row gutter={[16, 16]} style={{ marginBottom: '24px' }}>
+            <Col span={24}>
+              <Card title="Optimization Recommendations" extra={<Button type="primary">Implement All</Button>}>
+                <Row gutter={[16, 16]}>
+                  {optimizationInsights.slice(0, 4).map((insight, index) => (
+                    <Col xs={24} md={12} key={index}>
+                      <Alert
+                        message={
+                          <div style={{ display: 'flex', alignItems: 'center' }}>
+                            {getPriorityIcon(insight.type)}
+                            <Text strong style={{ marginLeft: 8 }}>{insight.title}</Text>
+                            <Tag 
+                              color={getPriorityColor(insight.priority)} 
+                              style={{ marginLeft: 'auto' }}
+                            >
+                              {insight.priority?.toUpperCase()}
+                            </Tag>
+                          </div>
+                        }
+                        description={
+                          <div>
+                            <Text>{insight.description}</Text>
+                            <br />
+                            <Text type="secondary" style={{ fontSize: '12px' }}>
+                              <strong>Impact:</strong> {insight.impact}
+                            </Text>
+                          </div>
+                        }
+                        type={insight.priority === 'high' ? 'warning' : 'info'}
+                        showIcon
+                        action={
+                          <Button size="small" type="primary">
+                            Apply
+                          </Button>
+                        }
+                      />
+                    </Col>
+                  ))}
+                </Row>
+              </Card>
+            </Col>
+          </Row>
+        )}
 
         {/* Department Performance Table */}
         <Row gutter={[16, 16]}>
@@ -576,9 +503,11 @@ const AnalyticsDashboard = () => {
               <Table
                 columns={departmentColumns}
                 dataSource={departmentData}
+                rowKey="departmentCode"
                 pagination={false}
                 size="middle"
                 scroll={{ x: 800 }}
+                loading={refreshing}
               />
             </Card>
           </Col>

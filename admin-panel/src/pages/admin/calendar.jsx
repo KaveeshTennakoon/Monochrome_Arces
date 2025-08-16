@@ -1,5 +1,4 @@
-// src/pages/admin/calendar.jsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import AdminLayout from '../../components/admin/AdminLayout';
 import { 
   Typography, 
@@ -17,7 +16,10 @@ import {
   Descriptions,
   Select,
   Switch,
-  Divider
+  Divider,
+  Spin,
+  message,
+  Alert
 } from 'antd';
 import {
   CalendarOutlined,
@@ -37,9 +39,11 @@ import {
   BookOutlined,
   HomeOutlined,
   IdcardOutlined,
-  DollarOutlined
+  DollarOutlined,
+  ReloadOutlined
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
+import { appointmentsAPI, departmentsAPI, handleAPIError } from '../../utils/api';
 
 const { Title, Text } = Typography;
 const { Option } = Select;
@@ -48,183 +52,21 @@ const AppointmentCalendar = () => {
   const [selectedDate, setSelectedDate] = useState(dayjs());
   const [selectedAppointment, setSelectedAppointment] = useState(null);
   const [modalVisible, setModalVisible] = useState(false);
-  const [viewMode, setViewMode] = useState('month'); // month, week, day
+  const [appointments, setAppointments] = useState([]);
+  const [departments, setDepartments] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [calendarLoading, setCalendarLoading] = useState(false);
   const [showLegend, setShowLegend] = useState(true);
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterDepartment, setFilterDepartment] = useState('all');
-
-  // Enhanced government services appointment data with calendar-specific formatting
-  const appointmentsData = [
-    {
-      id: '1',
-      appointmentId: 'APT-LR-2025-001',
-      title: 'Land Title Registration',
-      citizenName: 'Kamal Perera',
-      citizenEmail: 'kamal.perera@email.com',
-      citizenPhone: '+94 71 234 5678',
-      citizenNIC: '875672341V',
-      date: '2025-08-15',
-      time: '10:00 AM',
-      duration: '60 minutes',
-      status: 'confirmed',
-      priority: 'high',
-      officer: 'Ms. Nimalka Fernando',
-      officerID: 'LR001',
-      department: 'Land Registry',
-      departmentCode: 'LR',
-      serviceCategory: 'Registration',
-      fee: 'LKR 5,000',
-      serviceDetails: {
-        type: 'land',
-        referenceId: 'LAND-COL-2024-456',
-        location: 'Colombo 07, Cinnamon Gardens',
-        landType: 'Residential',
-        extent: '15 Perches'
-      },
-      color: '#52c41a',
-      statusColor: 'blue'
-    },
-    {
-      id: '2',
-      appointmentId: 'APT-DMT-2025-002',
-      title: 'Driving License Renewal',
-      citizenName: 'Ruwan Silva',
-      citizenEmail: 'ruwan.silva@email.com',
-      citizenPhone: '+94 77 987 6543',
-      citizenNIC: '923456789V',
-      date: '2025-08-15',
-      time: '02:30 PM',
-      duration: '30 minutes',
-      status: 'pending',
-      priority: 'medium',
-      officer: 'Mr. Asanka Wijayaratne',
-      officerID: 'DMT015',
-      department: 'Department of Motor Traffic',
-      departmentCode: 'DMT',
-      serviceCategory: 'License Services',
-      fee: 'LKR 2,500',
-      serviceDetails: {
-        type: 'license',
-        referenceId: 'DL-B7834521',
-        licenseClass: 'B1 (Light Vehicle)',
-        expiryDate: '2025-09-15'
-      },
-      color: '#faad14',
-      statusColor: 'orange'
-    },
-    {
-      id: '3',
-      appointmentId: 'APT-DIE-2025-003',
-      title: 'Passport Application',
-      citizenName: 'Priya Rathnayake',
-      citizenEmail: 'priya.rathnayake@email.com',
-      citizenPhone: '+94 70 111 2233',
-      citizenNIC: '856789123V',
-      date: '2025-08-16',
-      time: '09:00 AM',
-      duration: '45 minutes',
-      status: 'completed',
-      priority: 'low',
-      officer: 'Mr. Chandana Jayasinghe',
-      officerID: 'DIE008',
-      department: 'Department of Immigration & Emigration',
-      departmentCode: 'DIE',
-      serviceCategory: 'Travel Documents',
-      fee: 'LKR 3,500',
-      serviceDetails: {
-        type: 'passport',
-        referenceId: 'PASS-APP-789456',
-        passportType: 'Ordinary Passport',
-        processingTime: '10 working days'
-      },
-      color: '#52c41a',
-      statusColor: 'green'
-    },
-    {
-      id: '4',
-      appointmentId: 'APT-MUN-2025-004',
-      title: 'Business Registration',
-      citizenName: 'Nilantha Gunasekara',
-      citizenEmail: 'nilantha.g@email.com',
-      citizenPhone: '+94 75 444 5566',
-      citizenNIC: '791234567V',
-      date: '2025-08-16',
-      time: '11:30 AM',
-      duration: '90 minutes',
-      status: 'cancelled',
-      priority: 'medium',
-      officer: 'Ms. Kamani Dissanayake',
-      officerID: 'MUN023',
-      department: 'Municipal Council',
-      departmentCode: 'MUN',
-      serviceCategory: 'Licenses & Permits',
-      fee: 'LKR 7,500',
-      serviceDetails: {
-        type: 'business',
-        referenceId: 'BIZ-REG-2025-156',
-        businessType: 'Retail Store',
-        location: 'Colombo 03'
-      },
-      color: '#ff4d4f',
-      statusColor: 'red'
-    },
-    {
-      id: '5',
-      appointmentId: 'APT-MOH-2025-005',
-      title: 'Medical Certificate',
-      citizenName: 'Sunil Wickramasinghe',
-      citizenEmail: 'sunil.w@email.com',
-      citizenPhone: '+94 72 567 8901',
-      citizenNIC: '701234567V',
-      date: '2025-08-17',
-      time: '03:00 PM',
-      duration: '30 minutes',
-      status: 'confirmed',
-      priority: 'high',
-      officer: 'Dr. Amara Fernando',
-      officerID: 'MOH045',
-      department: 'Ministry of Health',
-      departmentCode: 'MOH',
-      serviceCategory: 'Health Services',
-      fee: 'LKR 1,500',
-      serviceDetails: {
-        type: 'medical',
-        referenceId: 'MED-CERT-789',
-        certificateType: 'Employment Medical',
-        purpose: 'Overseas Employment'
-      },
-      color: '#1890ff',
-      statusColor: 'blue'
-    },
-    {
-      id: '6',
-      appointmentId: 'APT-MOE-2025-006',
-      title: 'School Admission',
-      citizenName: 'Malini Jayawardena',
-      citizenEmail: 'malini.j@email.com',
-      citizenPhone: '+94 76 789 0123',
-      citizenNIC: '845678901V',
-      date: '2025-08-17',
-      time: '10:00 AM',
-      duration: '45 minutes',
-      status: 'pending',
-      priority: 'medium',
-      officer: 'Mrs. Sandamali Perera',
-      officerID: 'MOE012',
-      department: 'Ministry of Education',
-      departmentCode: 'MOE',
-      serviceCategory: 'Educational Services',
-      fee: 'LKR 500',
-      serviceDetails: {
-        type: 'education',
-        referenceId: 'EDU-ADM-456789',
-        grade: 'Grade 1',
-        schoolName: 'Nalanda College'
-      },
-      color: '#722ed1',
-      statusColor: 'purple'
-    }
-  ];
+  const [currentMonth, setCurrentMonth] = useState(dayjs().month());
+  const [currentYear, setCurrentYear] = useState(dayjs().year());
+  const [stats, setStats] = useState({
+    totalToday: 0,
+    totalMonth: 0,
+    pendingCount: 0,
+    departmentCount: 0
+  });
 
   // Department icons mapping
   const getDepartmentIcon = (departmentCode) => {
@@ -239,27 +81,104 @@ const AppointmentCalendar = () => {
     return icons[departmentCode] || <BankOutlined />;
   };
 
+  // Load initial data
+  useEffect(() => {
+    loadInitialData();
+  }, []);
+
+  // Load calendar appointments when month/year or filters change
+  useEffect(() => {
+    loadCalendarAppointments();
+  }, [currentMonth, currentYear, filterStatus, filterDepartment]);
+
+  // Update stats when appointments change
+  useEffect(() => {
+    updateStats();
+  }, [appointments]);
+
+  const loadInitialData = async () => {
+    try {
+      setLoading(true);
+      
+      // Load departments
+      const departmentsResponse = await departmentsAPI.getDepartments();
+      setDepartments(departmentsResponse.data || []);
+      
+      await loadCalendarAppointments();
+    } catch (error) {
+      handleAPIError(error);
+      message.error('Failed to load initial data');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadCalendarAppointments = async () => {
+    try {
+      setCalendarLoading(true);
+
+      const filters = {
+        status: filterStatus !== 'all' ? filterStatus : undefined,
+        department: filterDepartment !== 'all' ? filterDepartment : undefined,
+      };
+
+      const response = await appointmentsAPI.getCalendarAppointments(
+        currentMonth + 1, // API expects 1-based month
+        currentYear,
+        filters
+      );
+
+      setAppointments(response.data || []);
+    } catch (error) {
+      handleAPIError(error);
+      message.error('Failed to load calendar appointments');
+    } finally {
+      setCalendarLoading(false);
+    }
+  };
+
+  const updateStats = () => {
+    const today = dayjs().format('YYYY-MM-DD');
+    const thisMonth = dayjs().format('YYYY-MM');
+
+    const todayAppointments = appointments.filter(apt => 
+      dayjs(apt.date).format('YYYY-MM-DD') === today
+    );
+
+    const monthAppointments = appointments.filter(apt => 
+      dayjs(apt.date).format('YYYY-MM') === thisMonth
+    );
+
+    const pendingAppointments = appointments.filter(apt => apt.status === 'pending');
+    const uniqueDepartments = new Set(appointments.map(apt => apt.departmentCode));
+
+    setStats({
+      totalToday: todayAppointments.length,
+      totalMonth: monthAppointments.length,
+      pendingCount: pendingAppointments.length,
+      departmentCount: uniqueDepartments.size
+    });
+  };
+
   // Get appointments for a specific date
   const getAppointmentsForDate = (date) => {
     const dateStr = date.format('YYYY-MM-DD');
-    return appointmentsData.filter(apt => 
-      apt.date === dateStr && 
-      (filterStatus === 'all' || apt.status === filterStatus) &&
-      (filterDepartment === 'all' || apt.departmentCode === filterDepartment)
+    return appointments.filter(apt => 
+      dayjs(apt.date).format('YYYY-MM-DD') === dateStr
     );
   };
 
   // Calendar cell render function
   const dateCellRender = (value) => {
-    const appointments = getAppointmentsForDate(value);
+    const dayAppointments = getAppointmentsForDate(value);
     
     return (
       <div style={{ minHeight: 80 }}>
-        {appointments.map((appointment, index) => (
+        {dayAppointments.map((appointment, index) => (
           <div
             key={appointment.id}
             style={{
-              background: appointment.color,
+              background: appointment.color || getStatusColor(appointment.status),
               color: 'white',
               padding: '2px 4px',
               margin: '1px 0',
@@ -287,10 +206,28 @@ const AppointmentCalendar = () => {
     );
   };
 
+  const getStatusColor = (status) => {
+    const colors = {
+      'pending': '#faad14',
+      'confirmed': '#1890ff',
+      'completed': '#52c41a',
+      'cancelled': '#ff4d4f',
+      'rescheduled': '#722ed1'
+    };
+    return colors[status] || '#1890ff';
+  };
+
   // Handle appointment click
-  const handleAppointmentClick = (appointment) => {
-    setSelectedAppointment(appointment);
-    setModalVisible(true);
+  const handleAppointmentClick = async (appointment) => {
+    try {
+      // Get full appointment details
+      const response = await appointmentsAPI.getAppointment(appointment.id);
+      setSelectedAppointment(response.data);
+      setModalVisible(true);
+    } catch (error) {
+      handleAPIError(error);
+      message.error('Failed to load appointment details');
+    }
   };
 
   // Handle date select
@@ -298,15 +235,23 @@ const AppointmentCalendar = () => {
     setSelectedDate(date);
   };
 
+  // Handle month/year change
+  const onPanelChange = (value, mode) => {
+    setCurrentMonth(value.month());
+    setCurrentYear(value.year());
+  };
+
+  const handleRefresh = () => {
+    loadCalendarAppointments();
+  };
+
   // Department legend data
-  const departmentLegend = [
-    { code: 'LR', name: 'Land Registry', color: '#52c41a', icon: <HomeOutlined /> },
-    { code: 'DMT', name: 'Motor Traffic', color: '#faad14', icon: <CarOutlined /> },
-    { code: 'DIE', name: 'Immigration', color: '#1890ff', icon: <IdcardOutlined /> },
-    { code: 'MUN', name: 'Municipal', color: '#ff4d4f', icon: <BankOutlined /> },
-    { code: 'MOH', name: 'Health', color: '#722ed1', icon: <MedicineBoxOutlined /> },
-    { code: 'MOE', name: 'Education', color: '#eb2f96', icon: <BookOutlined /> }
-  ];
+  const departmentLegend = departments.map(dept => ({
+    code: dept.code,
+    name: dept.name,
+    color: dept.color || '#1890ff',
+    icon: getDepartmentIcon(dept.code)
+  }));
 
   // Status legend data
   const statusLegend = [
@@ -316,6 +261,16 @@ const AppointmentCalendar = () => {
     { status: 'cancelled', color: '#ff4d4f', label: 'Cancelled' },
     { status: 'rescheduled', color: '#722ed1', label: 'Rescheduled' }
   ];
+
+  if (loading) {
+    return (
+      <AdminLayout pageTitle="Appointment Calendar">
+        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '400px' }}>
+          <Spin size="large" />
+        </div>
+      </AdminLayout>
+    );
+  }
 
   return (
     <AdminLayout pageTitle="Appointment Calendar">
@@ -337,14 +292,14 @@ const AppointmentCalendar = () => {
                   value={filterDepartment}
                   onChange={setFilterDepartment}
                   placeholder="Filter Department"
+                  loading={calendarLoading}
                 >
                   <Option value="all">All Departments</Option>
-                  <Option value="LR">Land Registry</Option>
-                  <Option value="DMT">Motor Traffic</Option>
-                  <Option value="DIE">Immigration</Option>
-                  <Option value="MUN">Municipal</Option>
-                  <Option value="MOH">Health</Option>
-                  <Option value="MOE">Education</Option>
+                  {departments.map(dept => (
+                    <Option key={dept.code} value={dept.code}>
+                      {dept.name}
+                    </Option>
+                  ))}
                 </Select>
                 <Select
                   style={{ width: 120 }}
@@ -364,6 +319,13 @@ const AppointmentCalendar = () => {
                   checkedChildren="Legend"
                   unCheckedChildren="Legend"
                 />
+                <Button 
+                  icon={<ReloadOutlined />} 
+                  onClick={handleRefresh}
+                  loading={calendarLoading}
+                >
+                  Refresh
+                </Button>
               </Space>
             </Col>
           </Row>
@@ -372,10 +334,11 @@ const AppointmentCalendar = () => {
         <Row gutter={[16, 16]}>
           {/* Calendar */}
           <Col xs={24} lg={showLegend ? 18 : 24}>
-            <Card>
+            <Card loading={calendarLoading}>
               <Calendar
                 value={selectedDate}
                 onSelect={onDateSelect}
+                onPanelChange={onPanelChange}
                 dateCellRender={dateCellRender}
                 headerRender={({ value, type, onChange, onTypeChange }) => {
                   const start = 0;
@@ -415,7 +378,12 @@ const AppointmentCalendar = () => {
                         <Button 
                           type="text" 
                           icon={<LeftOutlined />} 
-                          onClick={() => onChange(value.clone().subtract(1, 'month'))}
+                          onClick={() => {
+                            const newValue = value.clone().subtract(1, 'month');
+                            onChange(newValue);
+                            setCurrentMonth(newValue.month());
+                            setCurrentYear(newValue.year());
+                          }}
                         />
                         <Select
                           size="small"
@@ -423,6 +391,7 @@ const AppointmentCalendar = () => {
                           onChange={(selectedMonth) => {
                             const newValue = value.clone().month(selectedMonth);
                             onChange(newValue);
+                            setCurrentMonth(selectedMonth);
                           }}
                         >
                           {monthOptions}
@@ -433,6 +402,7 @@ const AppointmentCalendar = () => {
                           onChange={(selectedYear) => {
                             const newValue = value.clone().year(selectedYear);
                             onChange(newValue);
+                            setCurrentYear(selectedYear);
                           }}
                         >
                           {options}
@@ -440,7 +410,12 @@ const AppointmentCalendar = () => {
                         <Button 
                           type="text" 
                           icon={<RightOutlined />} 
-                          onClick={() => onChange(value.clone().add(1, 'month'))}
+                          onClick={() => {
+                            const newValue = value.clone().add(1, 'month');
+                            onChange(newValue);
+                            setCurrentMonth(newValue.month());
+                            setCurrentYear(newValue.year());
+                          }}
                         />
                       </div>
                       
@@ -472,16 +447,18 @@ const AppointmentCalendar = () => {
             <Col xs={24} lg={6}>
               <Space direction="vertical" style={{ width: '100%' }} size="middle">
                 {/* Department Legend */}
-                <Card title="Departments" size="small">
-                  <Space direction="vertical" style={{ width: '100%' }}>
-                    {departmentLegend.map(item => (
-                      <div key={item.code} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        {item.icon}
-                        <Text style={{ fontSize: '12px' }}>{item.name}</Text>
-                      </div>
-                    ))}
-                  </Space>
-                </Card>
+                {departmentLegend.length > 0 && (
+                  <Card title="Departments" size="small">
+                    <Space direction="vertical" style={{ width: '100%' }}>
+                      {departmentLegend.map(item => (
+                        <div key={item.code} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          {item.icon}
+                          <Text style={{ fontSize: '12px' }}>{item.name}</Text>
+                        </div>
+                      ))}
+                    </Space>
+                  </Card>
+                )}
 
                 {/* Status Legend */}
                 <Card title="Status Legend" size="small">
@@ -518,8 +495,8 @@ const AppointmentCalendar = () => {
                           key={appointment.id}
                           style={{ 
                             padding: '8px',
-                            border: `1px solid ${appointment.color}`,
-                            borderLeft: `4px solid ${appointment.color}`,
+                            border: `1px solid ${appointment.color || getStatusColor(appointment.status)}`,
+                            borderLeft: `4px solid ${appointment.color || getStatusColor(appointment.status)}`,
                             borderRadius: '4px',
                             cursor: 'pointer',
                             background: '#fafafa'
@@ -549,23 +526,23 @@ const AppointmentCalendar = () => {
                   <Space direction="vertical" style={{ width: '100%' }} size="small">
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                       <Text style={{ fontSize: '12px' }}>Today's Total:</Text>
-                      <Badge count={getAppointmentsForDate(dayjs()).length} showZero />
+                      <Badge count={stats.totalToday} showZero />
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                       <Text style={{ fontSize: '12px' }}>This Month:</Text>
-                      <Badge count={appointmentsData.length} />
+                      <Badge count={stats.totalMonth} />
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                       <Text style={{ fontSize: '12px' }}>Pending:</Text>
                       <Badge 
-                        count={appointmentsData.filter(apt => apt.status === 'pending').length} 
+                        count={stats.pendingCount} 
                         style={{ backgroundColor: '#faad14' }}
                       />
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                       <Text style={{ fontSize: '12px' }}>Departments:</Text>
                       <Badge 
-                        count={new Set(appointmentsData.map(apt => apt.departmentCode)).size}
+                        count={stats.departmentCount}
                         style={{ backgroundColor: '#52c41a' }}
                       />
                     </div>
@@ -612,13 +589,13 @@ const AppointmentCalendar = () => {
                   <div style={{ display: 'flex', alignItems: 'center', marginBottom: 4 }}>
                     {getDepartmentIcon(selectedAppointment.departmentCode)}
                     <Title level={4} style={{ margin: 0, marginLeft: 8 }}>
-                      {selectedAppointment.title}
+                      {selectedAppointment.title || selectedAppointment.serviceType}
                     </Title>
                   </div>
-                  <Text type="secondary">{selectedAppointment.serviceDetails.referenceId}</Text>
+                  <Text type="secondary">{selectedAppointment.serviceDetails?.referenceId}</Text>
                 </div>
                 <div style={{ textAlign: 'right' }}>
-                  <Tag color={selectedAppointment.statusColor} style={{ textTransform: 'capitalize', marginBottom: 4 }}>
+                  <Tag color={getStatusColor(selectedAppointment.status)} style={{ textTransform: 'capitalize', marginBottom: 4 }}>
                     {selectedAppointment.status}
                   </Tag>
                   <div>
@@ -635,12 +612,12 @@ const AppointmentCalendar = () => {
                       <Descriptions.Item 
                         label={<span><CalendarOutlined /> Date</span>}
                       >
-                        {dayjs(selectedAppointment.date).format('MMMM DD, YYYY')}
+                        {dayjs(selectedAppointment.date || selectedAppointment.appointmentDate).format('MMMM DD, YYYY')}
                       </Descriptions.Item>
                       <Descriptions.Item 
                         label={<span><ClockCircleOutlined /> Time</span>}
                       >
-                        {selectedAppointment.time} ({selectedAppointment.duration})
+                        {selectedAppointment.time || selectedAppointment.appointmentTime} ({selectedAppointment.duration || selectedAppointment.estimatedDuration})
                       </Descriptions.Item>
                       <Descriptions.Item 
                         label={<span><UserOutlined /> Officer</span>}
@@ -691,90 +668,118 @@ const AppointmentCalendar = () => {
               </Row>
 
               {/* Service Details */}
-              <Card title="Service Details" style={{ marginTop: 16 }} size="small">
-                <Descriptions column={2} size="small" colon={false}>
-                  <Descriptions.Item 
-                    label={<span><FileTextOutlined /> Reference ID</span>}
-                  >
-                    {selectedAppointment.serviceDetails.referenceId}
-                  </Descriptions.Item>
-                  <Descriptions.Item 
-                    label="Category"
-                  >
-                    <Tag>{selectedAppointment.serviceCategory}</Tag>
-                  </Descriptions.Item>
-                  
-                  {/* Dynamic service details based on type */}
-                  {selectedAppointment.serviceDetails.type === 'land' && (
-                    <>
-                      <Descriptions.Item label="Location">
-                        {selectedAppointment.serviceDetails.location}
-                      </Descriptions.Item>
-                      <Descriptions.Item label="Land Type">
-                        {selectedAppointment.serviceDetails.landType}
-                      </Descriptions.Item>
-                      <Descriptions.Item label="Extent">
-                        {selectedAppointment.serviceDetails.extent}
-                      </Descriptions.Item>
-                    </>
+              {selectedAppointment.serviceDetails && (
+                <Card title="Service Details" style={{ marginTop: 16 }} size="small">
+                  <Descriptions column={2} size="small" colon={false}>
+                    <Descriptions.Item 
+                      label={<span><FileTextOutlined /> Reference ID</span>}
+                    >
+                      {selectedAppointment.serviceDetails.referenceId}
+                    </Descriptions.Item>
+                    <Descriptions.Item 
+                      label="Category"
+                    >
+                      <Tag>{selectedAppointment.serviceCategory}</Tag>
+                    </Descriptions.Item>
+                    
+                    {/* Dynamic service details based on type */}
+                    {selectedAppointment.serviceDetails.type === 'land' && (
+                      <>
+                        <Descriptions.Item label="Location">
+                          {selectedAppointment.serviceDetails.location}
+                        </Descriptions.Item>
+                        <Descriptions.Item label="Land Type">
+                          {selectedAppointment.serviceDetails.landType}
+                        </Descriptions.Item>
+                        <Descriptions.Item label="Extent">
+                          {selectedAppointment.serviceDetails.extent}
+                        </Descriptions.Item>
+                      </>
+                    )}
+                    
+                    {selectedAppointment.serviceDetails.type === 'license' && (
+                      <>
+                        <Descriptions.Item label="License Class">
+                          {selectedAppointment.serviceDetails.licenseClass}
+                        </Descriptions.Item>
+                        <Descriptions.Item label="Expiry Date">
+                          {selectedAppointment.serviceDetails.expiryDate}
+                        </Descriptions.Item>
+                      </>
+                    )}
+                    
+                    {selectedAppointment.serviceDetails.type === 'passport' && (
+                      <>
+                        <Descriptions.Item label="Passport Type">
+                          {selectedAppointment.serviceDetails.passportType}
+                        </Descriptions.Item>
+                        <Descriptions.Item label="Processing Time">
+                          {selectedAppointment.serviceDetails.processingTime}
+                        </Descriptions.Item>
+                      </>
+                    )}
+                    
+                    {selectedAppointment.serviceDetails.type === 'business' && (
+                      <>
+                        <Descriptions.Item label="Business Type">
+                          {selectedAppointment.serviceDetails.businessType}
+                        </Descriptions.Item>
+                        <Descriptions.Item label="Location">
+                          {selectedAppointment.serviceDetails.location}
+                        </Descriptions.Item>
+                      </>
+                    )}
+                    
+                    {selectedAppointment.serviceDetails.type === 'medical' && (
+                      <>
+                        <Descriptions.Item label="Certificate Type">
+                          {selectedAppointment.serviceDetails.certificateType}
+                        </Descriptions.Item>
+                        <Descriptions.Item label="Purpose">
+                          {selectedAppointment.serviceDetails.purpose}
+                        </Descriptions.Item>
+                      </>
+                    )}
+                    
+                    {selectedAppointment.serviceDetails.type === 'education' && (
+                      <>
+                        <Descriptions.Item label="Grade">
+                          {selectedAppointment.serviceDetails.grade}
+                        </Descriptions.Item>
+                        <Descriptions.Item label="School">
+                          {selectedAppointment.serviceDetails.schoolName}
+                        </Descriptions.Item>
+                      </>
+                    )}
+                  </Descriptions>
+                </Card>
+              )}
+
+              {/* Documents & Notes */}
+              {(selectedAppointment.documents || selectedAppointment.notes) && (
+                <Card title="Documents & Notes" style={{ marginTop: 16 }} size="small">
+                  {selectedAppointment.documents && (
+                    <div style={{ marginBottom: 16 }}>
+                      <Text strong>Required Documents:</Text>
+                      <div style={{ marginTop: 8 }}>
+                        {selectedAppointment.documents.map((doc, index) => (
+                          <Tag key={index} icon={<FileTextOutlined />} style={{ margin: 4 }}>
+                            {doc}
+                          </Tag>
+                        ))}
+                      </div>
+                    </div>
                   )}
-                  
-                  {selectedAppointment.serviceDetails.type === 'license' && (
-                    <>
-                      <Descriptions.Item label="License Class">
-                        {selectedAppointment.serviceDetails.licenseClass}
-                      </Descriptions.Item>
-                      <Descriptions.Item label="Expiry Date">
-                        {selectedAppointment.serviceDetails.expiryDate}
-                      </Descriptions.Item>
-                    </>
+                  {selectedAppointment.notes && (
+                    <div>
+                      <Text strong>Officer Notes:</Text>
+                      <div style={{ marginTop: 8, padding: 12, background: '#f5f5f5', borderRadius: 4 }}>
+                        {selectedAppointment.notes}
+                      </div>
+                    </div>
                   )}
-                  
-                  {selectedAppointment.serviceDetails.type === 'passport' && (
-                    <>
-                      <Descriptions.Item label="Passport Type">
-                        {selectedAppointment.serviceDetails.passportType}
-                      </Descriptions.Item>
-                      <Descriptions.Item label="Processing Time">
-                        {selectedAppointment.serviceDetails.processingTime}
-                      </Descriptions.Item>
-                    </>
-                  )}
-                  
-                  {selectedAppointment.serviceDetails.type === 'business' && (
-                    <>
-                      <Descriptions.Item label="Business Type">
-                        {selectedAppointment.serviceDetails.businessType}
-                      </Descriptions.Item>
-                      <Descriptions.Item label="Location">
-                        {selectedAppointment.serviceDetails.location}
-                      </Descriptions.Item>
-                    </>
-                  )}
-                  
-                  {selectedAppointment.serviceDetails.type === 'medical' && (
-                    <>
-                      <Descriptions.Item label="Certificate Type">
-                        {selectedAppointment.serviceDetails.certificateType}
-                      </Descriptions.Item>
-                      <Descriptions.Item label="Purpose">
-                        {selectedAppointment.serviceDetails.purpose}
-                      </Descriptions.Item>
-                    </>
-                  )}
-                  
-                  {selectedAppointment.serviceDetails.type === 'education' && (
-                    <>
-                      <Descriptions.Item label="Grade">
-                        {selectedAppointment.serviceDetails.grade}
-                      </Descriptions.Item>
-                      <Descriptions.Item label="School">
-                        {selectedAppointment.serviceDetails.schoolName}
-                      </Descriptions.Item>
-                    </>
-                  )}
-                </Descriptions>
-              </Card>
+                </Card>
+              )}
             </div>
           )}
         </Modal>
