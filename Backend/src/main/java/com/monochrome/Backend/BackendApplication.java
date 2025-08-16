@@ -1,4 +1,4 @@
-package com.monochrome.backend;
+package com.monochrome.Backend;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
