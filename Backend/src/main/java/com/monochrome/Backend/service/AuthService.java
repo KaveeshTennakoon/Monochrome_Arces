@@ -1,21 +1,23 @@
 package com.monochrome.Backend.service;
 
-
 import com.monochrome.Backend.dto.AuthRequest;
 import com.monochrome.Backend.dto.AuthResponse;
+import com.monochrome.Backend.dto.ClientLoginRequest;
+import com.monochrome.Backend.dto.ClientRegisterRequest;
 import com.monochrome.Backend.dto.RefreshRequest;
 import com.monochrome.Backend.dto.UserDto;
 import com.monochrome.Backend.entity.RefreshToken;
+import com.monochrome.Backend.entity.Role;
 import com.monochrome.Backend.entity.User;
 import com.monochrome.Backend.repository.RefreshTokenRepository;
 import com.monochrome.Backend.repository.UserRepository;
 import com.monochrome.Backend.security.JwtService;
 import lombok.RequiredArgsConstructor;
-
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -33,6 +35,7 @@ public class AuthService {
     private final JwtService jwtService;
     private final UserRepository userRepository;
     private final RefreshTokenRepository refreshTokenRepository;
+    private final PasswordEncoder passwordEncoder;
 
     @Transactional
     public AuthResponse login(AuthRequest req) {
@@ -41,6 +44,62 @@ public class AuthService {
         SecurityContextHolder.getContext().setAuthentication(auth);
 
         User user = userRepository.findByUsername(req.getUsername()).orElseThrow();
+        String access = jwtService.generateAccessToken(user);
+        String refresh = generateAndStoreRefreshToken(user);
+        return AuthResponse.builder()
+                .token(access)
+                .refreshToken(refresh)
+                .user(toDto(user))
+                .build();
+    }
+
+    // Client registration with full name, NIC, email, password
+    @Transactional
+    public AuthResponse clientRegister(ClientRegisterRequest req) {
+        if (userRepository.existsByEmail(req.getEmail())) {
+            throw new IllegalArgumentException("Email already registered");
+        }
+        if (req.getNic() != null && !req.getNic().isBlank() && userRepository.existsByNic(req.getNic())) {
+            throw new IllegalArgumentException("NIC already registered");
+        }
+        // username can be the email for clients
+        User user = User.builder()
+                .username(req.getEmail().toLowerCase())
+                .email(req.getEmail().toLowerCase())
+                .password(passwordEncoder.encode(req.getPassword()))
+                .name(req.getFullName())
+                .nic(req.getNic())
+                .role(Role.CLIENT)
+                .enabled(true)
+                .build();
+        userRepository.save(user);
+        String access = jwtService.generateAccessToken(user);
+        String refresh = generateAndStoreRefreshToken(user);
+        return AuthResponse.builder()
+                .token(access)
+                .refreshToken(refresh)
+                .user(toDto(user))
+                .build();
+    }
+
+    // Client login with email or NIC and password
+    @Transactional
+    public AuthResponse clientLogin(ClientLoginRequest req) {
+        User user;
+        if (req.getEmail() != null && !req.getEmail().isBlank()) {
+            user = userRepository.findByEmail(req.getEmail().toLowerCase())
+                    .orElseThrow(() -> new IllegalArgumentException("Invalid credentials"));
+        } else if (req.getNic() != null && !req.getNic().isBlank()) {
+            user = userRepository.findByNic(req.getNic())
+                    .orElseThrow(() -> new IllegalArgumentException("Invalid credentials"));
+        } else {
+            throw new IllegalArgumentException("Email or NIC is required");
+        }
+
+        Authentication auth = authenticationManager.authenticate(
+                new UsernamePasswordAuthenticationToken(user.getUsername(), req.getPassword()));
+        SecurityContextHolder.getContext().setAuthentication(auth);
+
         String access = jwtService.generateAccessToken(user);
         String refresh = generateAndStoreRefreshToken(user);
         return AuthResponse.builder()
@@ -87,6 +146,7 @@ public class AuthService {
                 .name(user.getName())
                 .username(user.getUsername())
                 .email(user.getEmail())
+                .nic(user.getNic())
                 .role(user.getRole().name().toLowerCase())
                 .department(user.getDepartment())
                 .permissions(permissions)
