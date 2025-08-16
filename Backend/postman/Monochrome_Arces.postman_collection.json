@@ -32,7 +32,7 @@
                         },
                         "body": {
                             "mode": "raw",
-                            "raw": "{\n  \"username\": \"admin\",\n  \"password\": \"admin123\"\n}"
+                            "raw": "{\n  \"username\": \"admin\",\n  \"password\": \"admin\"\n}"
                         }
                     },
                     "event": [
@@ -162,51 +162,6 @@
                                 "type": "text/javascript",
                                 "exec": [
                                     "pm.test('Status 200', function () { pm.response.to.have.status(200); });"
-                                ]
-                            }
-                        }
-                    ],
-                    "response": []
-                },
-                {
-                    "name": "Register",
-                    "request": {
-                        "method": "POST",
-                        "header": [
-                            { "key": "Content-Type", "value": "application/json" },
-                            { "key": "Authorization", "value": "Bearer {{token}}" }
-                        ],
-                        "url": {
-                            "raw": "{{baseUrl}}/api/auth/register",
-                            "host": [
-                                "{{baseUrl}}"
-                            ],
-                            "path": [
-                                "api",
-                                "auth",
-                                "register"
-                            ]
-                        },
-                        "body": {
-                            "mode": "raw",
-                            "raw": "{\n  \"username\": \"newuser\",\n  \"email\": \"newuser@example.com\",\n  \"password\": \"NewUser@2025\",\n  \"name\": \"New User\",\n  \"department\": \"Land Registry Department\",\n  \"role\": \"ADMIN\",\n  \"permissions\": [\"appointments\", \"services\"]\n}"
-                        }
-                    },
-                    "event": [
-                        {
-                            "listen": "test",
-                            "script": {
-                                "type": "text/javascript",
-                                "exec": [
-                                    "pm.test('Status 201', function () { pm.response.to.have.status(201); });",
-                                    "const data = pm.response.json();",
-                                    "pm.expect(data).to.have.property('token');",
-                                    "pm.collectionVariables.set('token', data.token);",
-                                    "if (data.refreshToken) { pm.collectionVariables.set('refreshToken', data.refreshToken); }",
-                                    "if (data.user) {",
-                                    "  pm.collectionVariables.set('username', data.user.username || '');",
-                                    "  pm.collectionVariables.set('role', data.user.role || '');",
-                                    "}"
                                 ]
                             }
                         }

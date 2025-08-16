@@ -1,9 +1,12 @@
 package com.monochrome.Backend.dto;
 
-import lombok.*;
-
 import java.time.Instant;
 import java.util.Set;
+
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
 @Data
 @Builder
@@ -15,6 +18,7 @@ public class UserDto {
     private String name;
     private String username;
     private String email;
+    private String nic;
     private String role;
     private String department;
     private Set<String> permissions;
