@@ -1,0 +1,96 @@
+package com.monochrome.Backend.service;
+
+
+import com.monochrome.Backend.dto.AuthRequest;
+import com.monochrome.Backend.dto.AuthResponse;
+import com.monochrome.Backend.dto.RefreshRequest;
+import com.monochrome.Backend.dto.UserDto;
+import com.monochrome.Backend.entity.RefreshToken;
+import com.monochrome.Backend.entity.User;
+import com.monochrome.Backend.repository.RefreshTokenRepository;
+import com.monochrome.Backend.repository.UserRepository;
+import com.monochrome.Backend.security.JwtService;
+import lombok.RequiredArgsConstructor;
+
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
+import java.util.Set;
+import java.util.UUID;
+import java.util.stream.Collectors;
+
+@Service
+@RequiredArgsConstructor
+public class AuthService {
+
+    private final AuthenticationManager authenticationManager;
+    private final JwtService jwtService;
+    private final UserRepository userRepository;
+    private final RefreshTokenRepository refreshTokenRepository;
+
+    @Transactional
+    public AuthResponse login(AuthRequest req) {
+        Authentication auth = authenticationManager.authenticate(
+                new UsernamePasswordAuthenticationToken(req.getUsername(), req.getPassword()));
+        SecurityContextHolder.getContext().setAuthentication(auth);
+
+        User user = userRepository.findByUsername(req.getUsername()).orElseThrow();
+        String access = jwtService.generateAccessToken(user);
+        String refresh = generateAndStoreRefreshToken(user);
+        return AuthResponse.builder()
+                .token(access)
+                .refreshToken(refresh)
+                .user(toDto(user))
+                .build();
+    }
+
+    @Transactional
+    public void logout(String username) {
+        userRepository.findByUsername(username).ifPresent(u -> refreshTokenRepository.deleteByUser(u));
+    }
+
+    public AuthResponse refresh(RefreshRequest request) {
+        RefreshToken rt = refreshTokenRepository.findByToken(request.getRefreshToken())
+                .orElseThrow(() -> new IllegalArgumentException("Invalid refresh token"));
+        if (rt.isRevoked() || rt.getExpiresAt().isBefore(Instant.now())) {
+            throw new IllegalArgumentException("Refresh token expired or revoked");
+        }
+        User user = rt.getUser();
+        String access = jwtService.generateAccessToken(user);
+        return AuthResponse.builder()
+                .token(access)
+                .refreshToken(rt.getToken())
+                .build();
+    }
+
+    private String generateAndStoreRefreshToken(User user) {
+        String token = UUID.randomUUID().toString();
+        RefreshToken rt = RefreshToken.builder()
+                .token(token)
+                .user(user)
+                .expiresAt(Instant.now().plus(7, ChronoUnit.DAYS))
+                .build();
+        refreshTokenRepository.save(rt);
+        return token;
+    }
+
+    public UserDto toDto(User user) {
+        Set<String> permissions = user.getPermissions().stream().map(p -> p.getName()).collect(Collectors.toSet());
+        return UserDto.builder()
+                .id(user.getId())
+                .name(user.getName())
+                .username(user.getUsername())
+                .email(user.getEmail())
+                .role(user.getRole().name().toLowerCase())
+                .department(user.getDepartment())
+                .permissions(permissions)
+                .loginTime(Instant.now())
+                .build();
+    }
+}
