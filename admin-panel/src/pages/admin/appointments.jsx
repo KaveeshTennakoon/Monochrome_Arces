@@ -34,7 +34,13 @@ import {
   EnvironmentOutlined,
   UserOutlined,
   PhoneOutlined,
-  MailOutlined
+  MailOutlined,
+  BankOutlined,
+  CarOutlined,
+  MedicineBoxOutlined,
+  BookOutlined,
+  HomeOutlined,
+  IdcardOutlined
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 
@@ -47,111 +53,210 @@ const AppointmentsManagement = () => {
   const [searchText, setSearchText] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [serviceFilter, setServiceFilter] = useState('all');
+  const [departmentFilter, setDepartmentFilter] = useState('all');
   const [dateRange, setDateRange] = useState(null);
   const [detailsModalVisible, setDetailsModalVisible] = useState(false);
   const [rescheduleModalVisible, setRescheduleModalVisible] = useState(false);
   const [selectedAppointment, setSelectedAppointment] = useState(null);
   const [form] = Form.useForm();
 
-  // Sample land appointment data
+  // Enhanced government services appointment data
   const appointmentsData = [
     {
       key: '1',
-      appointmentId: 'APT-2025-001',
+      appointmentId: 'APT-LR-2025-001',
       citizenName: 'Kamal Perera',
       citizenEmail: 'kamal.perera@email.com',
       citizenPhone: '+94 71 234 5678',
-      landDetails: {
-        landId: 'LAND-COL-2024-456',
-        location: 'Colombo 07, Cinnamon Gardens',
-        landType: 'Residential',
-        extent: '15 Perches',
-        coordinates: '6.9147° N, 79.8757° E',
-        surveyPlan: 'SP-789/2024'
-      },
+      citizenNIC: '875672341V',
+      department: 'Land Registry',
+      departmentCode: 'LR',
       serviceType: 'Land Title Registration',
+      serviceCategory: 'Registration',
       appointmentDate: '2025-08-15',
       appointmentTime: '10:00 AM',
       status: 'confirmed',
       officer: 'Ms. Nimalka Fernando',
-      documents: ['Title Deed', 'Survey Plan', 'ID Copy'],
+      officerID: 'LR001',
+      documents: ['Title Deed', 'Survey Plan', 'NIC Copy', 'Application Form'],
       priority: 'high',
       notes: 'First-time registration. All documents verified.',
-      createdDate: '2025-08-10'
+      createdDate: '2025-08-10',
+      estimatedDuration: '60 minutes',
+      fee: 'LKR 5,000',
+      serviceDetails: {
+        type: 'land',
+        referenceId: 'LAND-COL-2024-456',
+        location: 'Colombo 07, Cinnamon Gardens',
+        landType: 'Residential',
+        extent: '15 Perches'
+      }
     },
     {
       key: '2',
-      appointmentId: 'APT-2025-002',
+      appointmentId: 'APT-DMT-2025-002',
       citizenName: 'Ruwan Silva',
       citizenEmail: 'ruwan.silva@email.com',
       citizenPhone: '+94 77 987 6543',
-      landDetails: {
-        landId: 'LAND-GAL-2024-789',
-        location: 'Galle, Unawatuna Beach Road',
-        landType: 'Commercial',
-        extent: '25 Perches',
-        coordinates: '6.0535° N, 80.2210° E',
-        surveyPlan: 'SP-456/2024'
-      },
-      serviceType: 'Property Transfer',
+      citizenNIC: '923456789V',
+      department: 'Department of Motor Traffic',
+      departmentCode: 'DMT',
+      serviceType: 'Driving License Renewal',
+      serviceCategory: 'License Services',
       appointmentDate: '2025-08-16',
       appointmentTime: '02:30 PM',
       status: 'pending',
       officer: 'Mr. Asanka Wijayaratne',
-      documents: ['Transfer Deed', 'Tax Receipts', 'Survey Plan'],
+      officerID: 'DMT015',
+      documents: ['Current License', 'Medical Certificate', 'NIC Copy'],
       priority: 'medium',
-      notes: 'Property transfer pending verification.',
-      createdDate: '2025-08-11'
+      notes: 'License expires next month. Medical test completed.',
+      createdDate: '2025-08-11',
+      estimatedDuration: '30 minutes',
+      fee: 'LKR 2,500',
+      serviceDetails: {
+        type: 'license',
+        referenceId: 'DL-B7834521',
+        licenseClass: 'B1 (Light Vehicle)',
+        expiryDate: '2025-09-15',
+        issuedDate: '2020-09-15'
+      }
     },
     {
       key: '3',
-      appointmentId: 'APT-2025-003',
+      appointmentId: 'APT-DIE-2025-003',
       citizenName: 'Priya Rathnayake',
       citizenEmail: 'priya.rathnayake@email.com',
       citizenPhone: '+94 70 111 2233',
-      landDetails: {
-        landId: 'LAND-KAN-2024-123',
-        location: 'Kandy, Peradeniya Road',
-        landType: 'Agricultural',
-        extent: '2 Acres 15 Perches',
-        coordinates: '7.2906° N, 80.6337° E',
-        surveyPlan: 'SP-321/2024'
-      },
-      serviceType: 'Land Survey Verification',
+      citizenNIC: '856789123V',
+      department: 'Department of Immigration & Emigration',
+      departmentCode: 'DIE',
+      serviceType: 'Passport Application',
+      serviceCategory: 'Travel Documents',
       appointmentDate: '2025-08-14',
       appointmentTime: '09:00 AM',
       status: 'completed',
       officer: 'Mr. Chandana Jayasinghe',
-      documents: ['Survey Plan', 'Boundary Certificate'],
+      officerID: 'DIE008',
+      documents: ['Birth Certificate', 'NIC Copy', 'Photographs', 'Application Form'],
       priority: 'low',
-      notes: 'Survey completed successfully.',
-      createdDate: '2025-08-08'
+      notes: 'First-time passport application. All documents verified.',
+      createdDate: '2025-08-08',
+      estimatedDuration: '45 minutes',
+      fee: 'LKR 3,500',
+      serviceDetails: {
+        type: 'passport',
+        referenceId: 'PASS-APP-789456',
+        passportType: 'Ordinary Passport',
+        processingTime: '10 working days',
+        deliveryMethod: 'Postal'
+      }
     },
     {
       key: '4',
-      appointmentId: 'APT-2025-004',
+      appointmentId: 'APT-MUN-2025-004',
       citizenName: 'Nilantha Gunasekara',
       citizenEmail: 'nilantha.g@email.com',
       citizenPhone: '+94 75 444 5566',
-      landDetails: {
-        landId: 'LAND-JA-2024-987',
-        location: 'Jaffna, Nallur Road',
-        landType: 'Residential',
-        extent: '8 Perches',
-        coordinates: '9.6615° N, 80.0255° E',
-        surveyPlan: 'SP-654/2024'
-      },
-      serviceType: 'Deed Verification',
+      citizenNIC: '791234567V',
+      department: 'Municipal Council',
+      departmentCode: 'MUN',
+      serviceType: 'Business Registration',
+      serviceCategory: 'Licenses & Permits',
       appointmentDate: '2025-08-17',
       appointmentTime: '11:30 AM',
       status: 'cancelled',
       officer: 'Ms. Kamani Dissanayake',
-      documents: ['Original Deed', 'ID Copy'],
+      officerID: 'MUN023',
+      documents: ['Business Plan', 'Property Deed', 'NIC Copy', 'Bank Statement'],
       priority: 'medium',
       notes: 'Cancelled by citizen - rescheduling requested.',
-      createdDate: '2025-08-09'
+      createdDate: '2025-08-09',
+      estimatedDuration: '90 minutes',
+      fee: 'LKR 7,500',
+      serviceDetails: {
+        type: 'business',
+        referenceId: 'BIZ-REG-2025-156',
+        businessType: 'Retail Store',
+        location: 'Colombo 03',
+        expectedEmployees: '5-10'
+      }
+    },
+    {
+      key: '5',
+      appointmentId: 'APT-MOH-2025-005',
+      citizenName: 'Sunil Wickramasinghe',
+      citizenEmail: 'sunil.w@email.com',
+      citizenPhone: '+94 72 567 8901',
+      citizenNIC: '701234567V',
+      department: 'Ministry of Health',
+      departmentCode: 'MOH',
+      serviceType: 'Medical Certificate',
+      serviceCategory: 'Health Services',
+      appointmentDate: '2025-08-18',
+      appointmentTime: '03:00 PM',
+      status: 'confirmed',
+      officer: 'Dr. Amara Fernando',
+      officerID: 'MOH045',
+      documents: ['Previous Medical Records', 'NIC Copy', 'Employer Letter'],
+      priority: 'high',
+      notes: 'Employment medical certificate for overseas work.',
+      createdDate: '2025-08-12',
+      estimatedDuration: '30 minutes',
+      fee: 'LKR 1,500',
+      serviceDetails: {
+        type: 'medical',
+        referenceId: 'MED-CERT-789',
+        certificateType: 'Employment Medical',
+        purpose: 'Overseas Employment',
+        validityPeriod: '6 months'
+      }
+    },
+    {
+      key: '6',
+      appointmentId: 'APT-MOE-2025-006',
+      citizenName: 'Malini Jayawardena',
+      citizenEmail: 'malini.j@email.com',
+      citizenPhone: '+94 76 789 0123',
+      citizenNIC: '845678901V',
+      department: 'Ministry of Education',
+      departmentCode: 'MOE',
+      serviceType: 'School Admission',
+      serviceCategory: 'Educational Services',
+      appointmentDate: '2025-08-19',
+      appointmentTime: '10:00 AM',
+      status: 'pending',
+      officer: 'Mrs. Sandamali Perera',
+      officerID: 'MOE012',
+      documents: ['Birth Certificate', 'Previous School Records', 'Parent NIC', 'Address Proof'],
+      priority: 'medium',
+      notes: 'Grade 1 admission application for academic year 2026.',
+      createdDate: '2025-08-13',
+      estimatedDuration: '45 minutes',
+      fee: 'LKR 500',
+      serviceDetails: {
+        type: 'education',
+        referenceId: 'EDU-ADM-456789',
+        grade: 'Grade 1',
+        schoolName: 'Nalanda College',
+        academicYear: '2026',
+        medium: 'Sinhala'
+      }
     }
   ];
+
+  // Department icons mapping
+  const getDepartmentIcon = (departmentCode) => {
+    const icons = {
+      'LR': <HomeOutlined />,
+      'DMT': <CarOutlined />,
+      'DIE': <IdcardOutlined />,
+      'MUN': <BankOutlined />,
+      'MOH': <MedicineBoxOutlined />,
+      'MOE': <BookOutlined />
+    };
+    return icons[departmentCode] || <BankOutlined />;
+  };
 
   const getStatusColor = (status) => {
     const colors = {
@@ -218,8 +323,8 @@ const AppointmentsManagement = () => {
         <div>
           <div style={{ fontWeight: 600 }}>{record.citizenName}</div>
           <div style={{ fontSize: '12px', color: '#666' }}>
-            <MailOutlined style={{ marginRight: 4 }} />
-            {record.citizenEmail}
+            <IdcardOutlined style={{ marginRight: 4 }} />
+            {record.citizenNIC}
           </div>
           <div style={{ fontSize: '12px', color: '#666' }}>
             <PhoneOutlined style={{ marginRight: 4 }} />
@@ -229,27 +334,64 @@ const AppointmentsManagement = () => {
       ),
     },
     {
-      title: 'Land Information',
-      key: 'landInfo',
+      title: 'Department & Service',
+      key: 'service',
       render: (_, record) => (
         <div>
-          <div style={{ fontWeight: 600, color: '#1890ff' }}>{record.landDetails.landId}</div>
-          <div style={{ fontSize: '12px', color: '#666' }}>
-            <EnvironmentOutlined style={{ marginRight: 4 }} />
-            {record.landDetails.location}
+          <div style={{ display: 'flex', alignItems: 'center', marginBottom: 4 }}>
+            {getDepartmentIcon(record.departmentCode)}
+            <Text strong style={{ marginLeft: 8, fontSize: '13px' }}>
+              {record.department}
+            </Text>
           </div>
-          <div style={{ fontSize: '12px' }}>
-            <Tag size="small">{record.landDetails.landType}</Tag>
-            <span style={{ marginLeft: 8 }}>{record.landDetails.extent}</span>
+          <Tag color="blue" size="small">{record.serviceType}</Tag>
+          <div style={{ fontSize: '11px', color: '#666', marginTop: 2 }}>
+            {record.serviceCategory}
           </div>
         </div>
       ),
     },
     {
-      title: 'Service Type',
-      dataIndex: 'serviceType',
-      key: 'serviceType',
-      render: (text) => <Tag color="blue">{text}</Tag>,
+      title: 'Reference Details',
+      key: 'reference',
+      render: (_, record) => (
+        <div>
+          <div style={{ fontWeight: 600, color: '#1890ff', fontSize: '12px' }}>
+            {record.serviceDetails.referenceId}
+          </div>
+          {record.serviceDetails.type === 'land' && (
+            <div style={{ fontSize: '11px', color: '#666' }}>
+              <EnvironmentOutlined style={{ marginRight: 4 }} />
+              {record.serviceDetails.location}
+            </div>
+          )}
+          {record.serviceDetails.type === 'license' && (
+            <div style={{ fontSize: '11px', color: '#666' }}>
+              Class: {record.serviceDetails.licenseClass}
+            </div>
+          )}
+          {record.serviceDetails.type === 'passport' && (
+            <div style={{ fontSize: '11px', color: '#666' }}>
+              {record.serviceDetails.passportType}
+            </div>
+          )}
+          {record.serviceDetails.type === 'business' && (
+            <div style={{ fontSize: '11px', color: '#666' }}>
+              {record.serviceDetails.businessType}
+            </div>
+          )}
+          {record.serviceDetails.type === 'medical' && (
+            <div style={{ fontSize: '11px', color: '#666' }}>
+              {record.serviceDetails.certificateType}
+            </div>
+          )}
+          {record.serviceDetails.type === 'education' && (
+            <div style={{ fontSize: '11px', color: '#666' }}>
+              {record.serviceDetails.grade} - {record.serviceDetails.schoolName}
+            </div>
+          )}
+        </div>
+      ),
     },
     {
       title: 'Date & Time',
@@ -260,7 +402,9 @@ const AppointmentsManagement = () => {
             <CalendarOutlined style={{ marginRight: 4 }} />
             {dayjs(record.appointmentDate).format('MMM DD, YYYY')}
           </div>
-          <div style={{ fontSize: '12px', color: '#666' }}>{record.appointmentTime}</div>
+          <div style={{ fontSize: '12px', color: '#666' }}>
+            {record.appointmentTime} ({record.estimatedDuration})
+          </div>
         </div>
       ),
     },
@@ -286,14 +430,24 @@ const AppointmentsManagement = () => {
       ),
     },
     {
-      title: 'Assigned Officer',
-      dataIndex: 'officer',
+      title: 'Officer',
       key: 'officer',
-      render: (text) => (
+      render: (_, record) => (
         <div style={{ fontSize: '12px' }}>
           <UserOutlined style={{ marginRight: 4 }} />
-          {text}
+          <div>{record.officer}</div>
+          <Text type="secondary" style={{ fontSize: '11px' }}>
+            ID: {record.officerID}
+          </Text>
         </div>
+      ),
+    },
+    {
+      title: 'Fee',
+      dataIndex: 'fee',
+      key: 'fee',
+      render: (fee) => (
+        <Text strong style={{ color: '#52c41a' }}>{fee}</Text>
       ),
     },
     {
@@ -355,28 +509,30 @@ const AppointmentsManagement = () => {
     const matchesSearch = searchText === '' || 
       item.citizenName.toLowerCase().includes(searchText.toLowerCase()) ||
       item.appointmentId.toLowerCase().includes(searchText.toLowerCase()) ||
-      item.landDetails.landId.toLowerCase().includes(searchText.toLowerCase());
+      item.citizenNIC.toLowerCase().includes(searchText.toLowerCase()) ||
+      item.serviceDetails.referenceId.toLowerCase().includes(searchText.toLowerCase());
     
     const matchesStatus = statusFilter === 'all' || item.status === statusFilter;
     const matchesService = serviceFilter === 'all' || item.serviceType === serviceFilter;
+    const matchesDepartment = departmentFilter === 'all' || item.departmentCode === departmentFilter;
     
-    return matchesSearch && matchesStatus && matchesService;
+    return matchesSearch && matchesStatus && matchesService && matchesDepartment;
   });
 
   return (
     <AdminLayout pageTitle="Appointments Management">
       <div>
         <Title level={2} style={{ marginBottom: '8px' }}>
-          Appointments Management
+          Government Services Appointments
         </Title>
         <Text type="secondary" style={{ marginBottom: '24px', display: 'block' }}>
-          Manage land service appointments, reschedule, and track appointment status
+          Manage appointments across all government departments and services
         </Text>
 
         {/* Filters */}
         <Card style={{ marginBottom: '16px' }}>
           <Row gutter={[16, 16]} align="middle">
-            <Col xs={24} sm={8} md={6}>
+            <Col xs={24} sm={8} md={5}>
               <Input
                 placeholder="Search appointments..."
                 prefix={<SearchOutlined />}
@@ -387,7 +543,23 @@ const AppointmentsManagement = () => {
             <Col xs={24} sm={8} md={4}>
               <Select
                 style={{ width: '100%' }}
-                placeholder="Filter by status"
+                placeholder="Department"
+                value={departmentFilter}
+                onChange={setDepartmentFilter}
+              >
+                <Option value="all">All Departments</Option>
+                <Option value="LR">Land Registry</Option>
+                <Option value="DMT">Motor Traffic</Option>
+                <Option value="DIE">Immigration</Option>
+                <Option value="MUN">Municipal</Option>
+                <Option value="MOH">Health</Option>
+                <Option value="MOE">Education</Option>
+              </Select>
+            </Col>
+            <Col xs={24} sm={8} md={3}>
+              <Select
+                style={{ width: '100%' }}
+                placeholder="Status"
                 value={statusFilter}
                 onChange={setStatusFilter}
               >
@@ -398,20 +570,6 @@ const AppointmentsManagement = () => {
                 <Option value="cancelled">Cancelled</Option>
               </Select>
             </Col>
-            <Col xs={24} sm={8} md={6}>
-              <Select
-                style={{ width: '100%' }}
-                placeholder="Filter by service"
-                value={serviceFilter}
-                onChange={setServiceFilter}
-              >
-                <Option value="all">All Services</Option>
-                <Option value="Land Title Registration">Land Title Registration</Option>
-                <Option value="Property Transfer">Property Transfer</Option>
-                <Option value="Land Survey Verification">Land Survey Verification</Option>
-                <Option value="Deed Verification">Deed Verification</Option>
-              </Select>
-            </Col>
             <Col xs={24} sm={12} md={6}>
               <RangePicker
                 style={{ width: '100%' }}
@@ -419,11 +577,6 @@ const AppointmentsManagement = () => {
                 onChange={setDateRange}
                 placeholder={['Start Date', 'End Date']}
               />
-            </Col>
-            <Col xs={24} sm={12} md={2}>
-              <Button type="primary" block>
-                Export
-              </Button>
             </Col>
           </Row>
         </Card>
@@ -442,7 +595,7 @@ const AppointmentsManagement = () => {
             showQuickJumper: true,
             showTotal: (total) => `Total ${total} appointments`,
           }}
-          scroll={{ x: 1200 }}
+          scroll={{ x: 1400 }}
           size="middle"
         />
 
@@ -456,7 +609,7 @@ const AppointmentsManagement = () => {
               Close
             </Button>,
           ]}
-          width={800}
+          width={900}
         >
           {selectedAppointment && (
             <div>
@@ -465,6 +618,7 @@ const AppointmentsManagement = () => {
                   <Card title="Citizen Information" size="small">
                     <Descriptions column={1} size="small">
                       <Descriptions.Item label="Name">{selectedAppointment.citizenName}</Descriptions.Item>
+                      <Descriptions.Item label="NIC">{selectedAppointment.citizenNIC}</Descriptions.Item>
                       <Descriptions.Item label="Email">{selectedAppointment.citizenEmail}</Descriptions.Item>
                       <Descriptions.Item label="Phone">{selectedAppointment.citizenPhone}</Descriptions.Item>
                     </Descriptions>
@@ -473,9 +627,12 @@ const AppointmentsManagement = () => {
                 <Col span={12}>
                   <Card title="Appointment Details" size="small">
                     <Descriptions column={1} size="small">
+                      <Descriptions.Item label="Department">{selectedAppointment.department}</Descriptions.Item>
                       <Descriptions.Item label="Service">{selectedAppointment.serviceType}</Descriptions.Item>
                       <Descriptions.Item label="Date">{dayjs(selectedAppointment.appointmentDate).format('MMMM DD, YYYY')}</Descriptions.Item>
                       <Descriptions.Item label="Time">{selectedAppointment.appointmentTime}</Descriptions.Item>
+                      <Descriptions.Item label="Duration">{selectedAppointment.estimatedDuration}</Descriptions.Item>
+                      <Descriptions.Item label="Fee">{selectedAppointment.fee}</Descriptions.Item>
                       <Descriptions.Item label="Status">
                         <Tag color={getStatusColor(selectedAppointment.status)}>
                           {selectedAppointment.status.toUpperCase()}
@@ -486,14 +643,19 @@ const AppointmentsManagement = () => {
                 </Col>
               </Row>
 
-              <Card title="Land Information" style={{ marginTop: 16 }} size="small">
+              <Card title="Service Details" style={{ marginTop: 16 }} size="small">
                 <Descriptions column={2} size="small">
-                  <Descriptions.Item label="Land ID">{selectedAppointment.landDetails.landId}</Descriptions.Item>
-                  <Descriptions.Item label="Land Type">{selectedAppointment.landDetails.landType}</Descriptions.Item>
-                  <Descriptions.Item label="Location">{selectedAppointment.landDetails.location}</Descriptions.Item>
-                  <Descriptions.Item label="Extent">{selectedAppointment.landDetails.extent}</Descriptions.Item>
-                  <Descriptions.Item label="Coordinates">{selectedAppointment.landDetails.coordinates}</Descriptions.Item>
-                  <Descriptions.Item label="Survey Plan">{selectedAppointment.landDetails.surveyPlan}</Descriptions.Item>
+                  <Descriptions.Item label="Reference ID">{selectedAppointment.serviceDetails.referenceId}</Descriptions.Item>
+                  <Descriptions.Item label="Category">{selectedAppointment.serviceCategory}</Descriptions.Item>
+                  {/* Dynamic service details based on type */}
+                  {Object.entries(selectedAppointment.serviceDetails)
+                    .filter(([key]) => key !== 'type' && key !== 'referenceId')
+                    .map(([key, value]) => (
+                      <Descriptions.Item key={key} label={key.charAt(0).toUpperCase() + key.slice(1)}>
+                        {value}
+                      </Descriptions.Item>
+                    ))
+                  }
                 </Descriptions>
               </Card>
 
@@ -509,9 +671,15 @@ const AppointmentsManagement = () => {
                   </div>
                 </div>
                 <div>
-                  <Text strong>Notes:</Text>
+                  <Text strong>Officer Notes:</Text>
                   <div style={{ marginTop: 8, padding: 12, background: '#f5f5f5', borderRadius: 4 }}>
                     {selectedAppointment.notes}
+                  </div>
+                </div>
+                <div style={{ marginTop: 16 }}>
+                  <Text strong>Assigned Officer:</Text>
+                  <div style={{ marginTop: 8 }}>
+                    <Text>{selectedAppointment.officer} (ID: {selectedAppointment.officerID})</Text>
                   </div>
                 </div>
               </Card>

@@ -41,48 +41,10 @@ const AdminLayout = ({ children }) => {
       icon: <CalendarOutlined />,
       label: 'Calendar View',
     },
-    {
-      key: '/admin/services',
-      icon: <BankOutlined />,
-      label: 'Services',
-    },
-    {
-      key: '/admin/users',
-      icon: <TeamOutlined />,
-      label: 'Users Management',
-      children: [
-        {
-          key: '/admin/users/citizens',
-          label: 'Citizens',
-        },
-        {
-          key: '/admin/users/officers',
-          label: 'Officers',
-        },
-      ],
-    },
-    {
-      key: '/admin/analytics',
-      icon: <BarChartOutlined />,
-      label: 'Analytics & Reports',
-    },
-    {
-      key: '/admin/settings',
-      icon: <SettingOutlined />,
-      label: 'System Settings',
-    },
   ];
 
   // Admin profile dropdown menu
   const adminMenuItems = [
-    {
-      key: 'profile',
-      icon: <UserOutlined />,
-      label: 'Profile Settings',
-    },
-    {
-      type: 'divider',
-    },
     {
       key: 'logout',
       icon: <LogoutOutlined />,
@@ -190,17 +152,8 @@ const AdminLayout = ({ children }) => {
             />
           </div>
 
-          {/* Right side - Notifications and Profile */}
+          {/* Profile */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-            {/* Notifications */}
-            <Badge count={5}>
-              <Button 
-                type="text" 
-                shape="circle" 
-                icon={<BellOutlined style={{ fontSize: '18px' }} />}
-                size="large"
-              />
-            </Badge>
 
             {/* Admin Profile Dropdown */}
             <Dropdown
@@ -230,9 +183,6 @@ const AdminLayout = ({ children }) => {
                 <Space direction="vertical" size={0}>
                   <Text strong style={{ lineHeight: 1.2 }}>
                     Admin User
-                  </Text>
-                  <Text type="secondary" style={{ fontSize: '12px', lineHeight: 1.2 }}>
-                    System Administrator
                   </Text>
                 </Space>
               </div>
