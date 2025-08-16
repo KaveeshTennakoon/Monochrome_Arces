@@ -1,4 +1,3 @@
-// src/pages/admin/login.jsx
 import React, { useState, useEffect } from 'react';
 import { 
   Form, 
@@ -23,6 +22,7 @@ import {
 import { useRouter } from 'next/router';
 import Head from 'next/head';
 import { isAuthenticated, AUTH_STORAGE_KEY, TOKEN_STORAGE_KEY } from '../../utils/auth';
+import { authAPI, handleAPIError } from '../../utils/api';
 
 const { Title, Text } = Typography;
 
@@ -31,12 +31,6 @@ const AdminLogin = () => {
   const [error, setError] = useState('');
   const [form] = Form.useForm();
   const router = useRouter();
-
-  // Demo admin credentials
-  const ADMIN_CREDENTIALS = {
-    username: 'admin',
-    password: 'admin123'
-  };
 
   // Check if already authenticated
   useEffect(() => {
@@ -52,26 +46,14 @@ const AdminLogin = () => {
     try {
       const { username, password } = values;
       
-      // Validate credentials (in production, this would be an API call)
-      if (username === ADMIN_CREDENTIALS.username && 
-          password === ADMIN_CREDENTIALS.password) {
+      // Call the authentication API
+      const response = await authAPI.login({ username, password });
+      
+      if (response.success) {
+        // Store user data and token
+        const { user, token } = response.data;
         
-        // Create user session
-        const userData = {
-          id: 'admin001',
-          name: 'System Administrator',
-          username: username,
-          email: 'admin@gov.lk',
-          role: 'admin',
-          department: 'Land Registry Department',
-          permissions: ['appointments', 'services', 'users', 'analytics', 'settings'],
-          loginTime: new Date().toISOString()
-        };
-
-        const token = 'admin-token-' + Date.now();
-
-        // Store in localStorage
-        localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(userData));
+        localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(user));
         localStorage.setItem(TOKEN_STORAGE_KEY, token);
 
         message.success('Login successful!');
@@ -81,10 +63,28 @@ const AdminLogin = () => {
           router.push('/admin/dashboard');
         }, 500);
       } else {
-        setError('Invalid username or password. Please try again.');
+        setError(response.message || 'Invalid username or password. Please try again.');
       }
     } catch (err) {
-      setError('Login failed. Please try again.');
+      handleAPIError(err);
+      
+      // Handle specific error messages
+      if (err.message.includes('401') || err.message.includes('Unauthorized')) {
+        setError('Invalid username or password. Please try again.');
+      } else if (err.message.includes('403') || err.message.includes('Forbidden')) {
+        setError('Your account has been disabled. Please contact the system administrator.');
+      } else if (err.message.includes('404') || err.message.includes('Not Found')) {
+        setError('User not found. Please check your username.');
+      } else if (err.message.includes('429') || err.message.includes('Too Many Requests')) {
+        setError('Too many login attempts. Please try again later.');
+      } else if (err.message.includes('500') || err.message.includes('Internal Server Error')) {
+        setError('Server error. Please try again later or contact support.');
+      } else if (err.message.includes('Network') || err.message.includes('fetch')) {
+        setError('Network error. Please check your internet connection.');
+      } else {
+        setError('Login failed. Please try again.');
+      }
+      
       console.error('Login error:', err);
     } finally {
       setLoading(false);
@@ -93,6 +93,10 @@ const AdminLogin = () => {
 
   const handleSuperAdminAccess = () => {
     router.push('/superadmin/login');
+  };
+
+  const handleForgotPassword = () => {
+    message.info('Please contact your system administrator to reset your password.');
   };
 
   return (
@@ -169,7 +173,8 @@ const AdminLogin = () => {
                   name="username"
                   label="Username"
                   rules={[
-                    { required: true, message: 'Please enter your username' }
+                    { required: true, message: 'Please enter your username' },
+                    { min: 3, message: 'Username must be at least 3 characters' }
                   ]}
                 >
                   <Input
@@ -184,7 +189,8 @@ const AdminLogin = () => {
                   name="password"
                   label="Password"
                   rules={[
-                    { required: true, message: 'Please enter your password' }
+                    { required: true, message: 'Please enter your password' },
+                    { min: 6, message: 'Password must be at least 6 characters' }
                   ]}
                 >
                   <Input.Password
@@ -193,6 +199,19 @@ const AdminLogin = () => {
                     autoComplete="current-password"
                     disabled={loading}
                   />
+                </Form.Item>
+
+                <Form.Item style={{ marginBottom: '16px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Button 
+                      type="link" 
+                      onClick={handleForgotPassword}
+                      style={{ padding: 0, fontSize: '14px' }}
+                      disabled={loading}
+                    >
+                      Forgot Password?
+                    </Button>
+                  </div>
                 </Form.Item>
 
                 <Form.Item style={{ marginBottom: '24px' }}>
@@ -234,23 +253,17 @@ const AdminLogin = () => {
                 Super Admin Portal
               </Button>
 
-              {/* Demo Credentials */}
+              {/* Connection Status */}
               <div style={{ 
                 marginTop: '32px', 
-                padding: '20px', 
+                padding: '16px', 
                 background: '#f8f9fa', 
-                borderRadius: '12px',
-                border: '1px solid #e9ecef'
+                borderRadius: '8px',
+                border: '1px solid #e9ecef',
+                textAlign: 'center'
               }}>
-                <Text strong style={{ fontSize: '12px', color: '#666' }}>
-                  Demo Admin Credentials:
-                </Text>
-                <div style={{ fontSize: '11px', color: '#888', marginTop: '8px' }}>
-                  <div>Username: <code>{ADMIN_CREDENTIALS.username}</code></div>
-                  <div>Password: <code>{ADMIN_CREDENTIALS.password}</code></div>
-                </div>
-                <Text style={{ fontSize: '10px', color: '#999', marginTop: '8px', display: 'block' }}>
-                  *For demo purposes only. In production, use secure authentication.
+                <Text style={{ fontSize: '12px', color: '#666' }}>
+                  🔒 Secure connection established
                 </Text>
               </div>
             </Card>
@@ -259,6 +272,10 @@ const AdminLogin = () => {
             <div style={{ textAlign: 'center', marginTop: '24px' }}>
               <Text style={{ color: 'rgba(255,255,255,0.9)', fontSize: '12px' }}>
                 Government Services Portal © 2025
+              </Text>
+              <br />
+              <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: '11px' }}>
+                Powered by Ministry of Digital Technology
               </Text>
             </div>
           </Col>

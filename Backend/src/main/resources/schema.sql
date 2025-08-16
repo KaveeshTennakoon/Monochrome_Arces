@@ -1,0 +1,2 @@
+-- Ensure created_at column name matches entity field createdAt mapping defaults
+-- Hibernate will generate by default; this helps seed scripts in MySQL with snake_case columns
