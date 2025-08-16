@@ -283,11 +283,11 @@ npm start
                     │    Spring Boot API      │
                     │   (JWT Authentication)  │
                     └─────────────┬───────────┘
-                                 │
-                         ┌───────┴───────┐
-                         │  MySQL DB     │
-                         │  (JPA/Hibernate)│
-                         └───────────────┘
+                                  │
+                         ┌────────┴───────────┐
+                         │  MySQL DB          │
+                         │  (JPA/Hibernate)   │
+                         └────────────────────┘
 ```
 
 ### Database Schema
