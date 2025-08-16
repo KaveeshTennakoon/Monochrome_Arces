@@ -292,17 +292,17 @@ npm start
 
 ### Database Schema
 ```
-┌─────────────┐    ┌─────────────┐    ┌─────────────┐
+┌─────────────┐    ┌─────────────┐    ┌──────────────┐
 │    users    │    │permissions  │    │refresh_tokens│
-├─────────────┤    ├─────────────┤    ├─────────────┤
-│ id (PK)     │    │ id (PK)     │    │ id (PK)     │
-│ username    │    │ name        │    │ token       │
-│ email       │    └─────────────┘    │ user_id (FK)│
-│ password    │                       │ expires_at  │
-│ name        │    ┌─────────────┐    └─────────────┘
+├─────────────┤    ├─────────────┤    ├──────────────┤
+│ id (PK)     │    │ id (PK)     │    │ id (PK)      │
+│ username    │    │ name        │    │ token        │
+│ email       │    └─────────────┘    │ user_id (FK) │
+│ password    │                       │ expires_at   │
+│ name        │    ┌────────────────┐ └──────────────┘
 │ department  │    │user_permissions│
-│ role        │    ├─────────────┤
-│ enabled     │    │ user_id (FK)│
-│ created_at  │    │ permission_id│
-└─────────────┘    └─────────────┘
+│ role        │    ├────────────────┤
+│ enabled     │    │ user_id (FK)   │
+│ created_at  │    │ permission_id  │
+└─────────────┘    └────────────────┘
 ```
